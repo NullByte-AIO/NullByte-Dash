@@ -18,6 +18,7 @@ import {
   UserCircleIcon,
 } from "../icons/index";
 import SidebarWidget from "./SidebarWidget";
+import NeuralLogo from "@/components/common/NeuralLogo";
 
 type NavItem = {
   name: string;
@@ -273,30 +274,11 @@ const AppSidebar: React.FC = () => {
         <Link href="/" className="relative group">
           <div className="absolute inset-0 bg-brand-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity dark:bg-[#05FF00]/10" />
           {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden relative z-10"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block relative z-10"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
+            <NeuralLogo />
           ) : (
-            <Image
-              className="relative z-10"
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
+            <div className="w-10 h-10 bg-black border border-white/10 rounded-xl flex items-center justify-center overflow-hidden">
+              <span className="text-white font-black text-xs tracking-tighter">N<span className="text-[#00D2FF]">B</span></span>
+            </div>
           )}
         </Link>
       </div>
