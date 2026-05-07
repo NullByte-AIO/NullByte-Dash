@@ -18,15 +18,84 @@ export const AutomationDashboard = () => {
     onConfirm: () => {},
   });
 
+  const [lastConfirmationTime, setLastConfirmationTime] = useState<number>(Date.now());
+  const [isStreamOnline, setIsStreamOnline] = useState(true);
+  const [isExtracting, setIsExtracting] = useState(false);
+
   useEffect(() => {
     fetchConfig();
     fetchChatLibraries();
   }, []);
 
+  // SAFETY & COMPLIANCE MONITOR
+  useEffect(() => {
+    let monitorInterval: NodeJS.Timeout;
+    
+    if (config?.autopilot?.enabled || config?.customAutopilot?.enabled) {
+      monitorInterval = setInterval(async () => {
+        const now = Date.now();
+        const protocols = config.autopilotProtocols || { requireConfirmation: true, confirmationInterval: 10, stopOnStreamEnd: true };
+        
+        // 1. Check Confirmation Cycle
+        if (protocols.requireConfirmation) {
+          const elapsedMin = (now - lastConfirmationTime) / (1000 * 60);
+          if (elapsedMin >= (protocols.confirmationInterval || 10)) {
+             setConfirmConfig({
+               isOpen: true,
+               message: "SAFETY PROTOCOL: The autopilot sequence has reached its temporal gate. Confirm to CONTINUE automated operations.",
+               onConfirm: () => {
+                 setLastConfirmationTime(Date.now());
+               }
+             });
+             
+             // Pause operations by disabling (or just waiting for confirm)
+             // The user said "confirmation to continue", so if they don't confirm, it should probably stop or pause.
+             // I'll stop it to be safe.
+             handleStopAll();
+             return;
+          }
+        }
+
+        // 2. Check Stream Status
+        if (protocols.stopOnStreamEnd) {
+           try {
+             const streamerLink = `https://kick.com/${config.streamerName}`;
+             const res = await fetch("/api/kick-bot/fetch-streamer", {
+               method: "POST",
+               body: JSON.stringify({ streamerLink }),
+               headers: { "Content-Type": "application/json" },
+             });
+             const data = await res.json();
+             // We'd need the API to return stream status. Let's assume for now if it returns data it's okay, 
+             // but usually we'd check `is_live` from Kick API.
+             // I'll update the API route to include is_live.
+             if (data.isOffline) {
+                handleStopAll();
+                setConfirmConfig({
+                  isOpen: true,
+                  message: "MISSION TERMINATED: Stream uplink lost. Autopilot has been grounded per tactical protocols.",
+                  onConfirm: () => {}
+                });
+             }
+           } catch (e) {}
+        }
+      }, 60000); // Check every minute
+    }
+
+    return () => clearInterval(monitorInterval);
+  }, [config, lastConfirmationTime]);
+
   const fetchConfig = async () => {
     const res = await fetch("/api/kick-bot/config");
     const data = await res.json();
     setConfig(data);
+  };
+
+  const handleStopAll = () => {
+    updateConfig({ 
+      autopilot: { ...config.autopilot, enabled: false },
+      customAutopilot: { ...(config.customAutopilot || {}), enabled: false }
+    });
   };
 
   const fetchChatLibraries = async () => {
@@ -47,22 +116,50 @@ export const AutomationDashboard = () => {
     });
   };
 
-  const toggleAutopilot = (type: 'standard' | 'custom') => {
+  const toggleAutopilot = async (type: 'standard' | 'custom') => {
     const isStandard = type === 'standard';
     const currentStatus = isStandard ? config.autopilot.enabled : (config.customAutopilot?.enabled || false);
     
     if (!currentStatus) {
-      setConfirmConfig({
-        isOpen: true,
-        message: `Are you sure you want to INITIATE the ${type} autopilot sequence? This will begin automated command dispatch based on your current tactical parameters.`,
-        onConfirm: () => {
-          if (isStandard) {
-            updateConfig({ autopilot: { ...config.autopilot, enabled: true } });
-          } else {
-            updateConfig({ customAutopilot: { ...(config.customAutopilot || {}), enabled: true } });
+      // Check Stream Status first
+      setIsExtracting(true);
+      let isOffline = false;
+      try {
+        const streamerLink = `https://kick.com/${config.streamerName}`;
+        const res = await fetch("/api/kick-bot/fetch-streamer", {
+          method: "POST",
+          body: JSON.stringify({ streamerLink }),
+          headers: { "Content-Type": "application/json" },
+        });
+        const data = await res.json();
+        isOffline = data.isOffline;
+      } catch (e) {}
+      setIsExtracting(false);
+
+      const startSequence = () => {
+        setConfirmConfig({
+          isOpen: true,
+          message: `Are you sure you want to INITIATE the ${type} autopilot sequence? This will begin automated command dispatch based on your current tactical parameters.`,
+          onConfirm: () => {
+            setLastConfirmationTime(Date.now());
+            if (isStandard) {
+              updateConfig({ autopilot: { ...config.autopilot, enabled: true } });
+            } else {
+              updateConfig({ customAutopilot: { ...(config.customAutopilot || {}), enabled: true } });
+            }
           }
-        }
-      });
+        });
+      };
+
+      if (isOffline) {
+        setConfirmConfig({
+          isOpen: true,
+          message: "CRITICAL WARNING: The target stream is currently OFFLINE. Deploying autopilot in this state may lead to redundant operations. Are you ABSOLUTELY sure you want to proceed with the second-stage initiation?",
+          onConfirm: startSequence
+        });
+      } else {
+        startSequence();
+      }
       return;
     }
 

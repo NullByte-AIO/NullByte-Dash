@@ -29,37 +29,13 @@ type NavItem = {
 const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
-    name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/", pro: false }],
-  },
-  {
-    icon: <CalenderIcon />,
-    name: "Calendar",
-    path: "/calendar",
+    name: "Overview",
+    path: "/",
   },
   {
     icon: <UserCircleIcon />,
     name: "User Profile",
     path: "/profile",
-  },
-
-  {
-    name: "Forms",
-    icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-  },
-  {
-    name: "Tables",
-    icon: <TableIcon />,
-    subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
-  },
-  {
-    name: "Pages",
-    icon: <PageIcon />,
-    subItems: [
-      { name: "Blank Page", path: "/blank", pro: false },
-      { name: "404 Error", path: "/error-404", pro: false },
-    ],
   },
   {
     name: "Kick Bot",
@@ -69,45 +45,16 @@ const navItems: NavItem[] = [
       { name: "Accounts", path: "/kick-bot/accounts", pro: false },
       { name: "Chat Station", path: "/kick-bot/chat", pro: false },
       { name: "Autopilot", path: "/kick-bot/automation", pro: false },
-      { name: "Settings", path: "/kick-bot/config", pro: false },
-      { name: "System Logs", path: "/kick-bot/logs", pro: false },
       { name: "Emoji Manager", path: "/kick-bot/emojis", pro: false },
       { name: "Matrix Manager", path: "/kick-bot/matrix", pro: false },
       { name: "File Manager", path: "/kick-bot/library", pro: false },
+      { name: "System Logs", path: "/kick-bot/logs", pro: false },
+      { name: "Settings", path: "/kick-bot/config", pro: false },
     ],
   },
 ];
 
-const othersItems: NavItem[] = [
-  {
-    icon: <PieChartIcon />,
-    name: "Charts",
-    subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
-    ],
-  },
-  {
-    icon: <BoxCubeIcon />,
-    name: "UI Elements",
-    subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
-    ],
-  },
-  {
-    icon: <PlugInIcon />,
-    name: "Authentication",
-    subItems: [
-      { name: "Sign In", path: "/signin", pro: false },
-      { name: "Sign Up", path: "/signup", pro: false },
-    ],
-  },
-];
+const othersItems: NavItem[] = [];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
