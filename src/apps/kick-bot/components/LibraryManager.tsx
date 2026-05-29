@@ -2,10 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { GlassCard } from "../../../components/ui/GlassCard";
 
-type LibraryType = "messages" | "emojis" | "words";
+type LibraryType = "emojis" | "words";
 
 export const LibraryManager = () => {
-  const [activeLibrary, setActiveLibrary] = useState<LibraryType>("messages");
+  const [activeLibrary, setActiveLibrary] = useState<LibraryType>("emojis");
   const [content, setContent] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -44,7 +44,7 @@ export const LibraryManager = () => {
   return (
     <div className="space-y-8">
       <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-        {(["messages", "emojis", "words"] as LibraryType[]).map((type) => (
+        {(["emojis", "words"] as LibraryType[]).map((type) => (
           <button
             key={type}
             onClick={() => setActiveLibrary(type)}
