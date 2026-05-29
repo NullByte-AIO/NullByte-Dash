@@ -178,7 +178,7 @@ export const AutomationDashboard = () => {
       <GlassCard title="Strategic Autopilot (Main)">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6">
-            <div className="flex items-center justify-between p-8 rounded-[32px] bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 relative overflow-hidden group">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 sm:gap-0 p-8 rounded-[32px] bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 relative overflow-hidden group">
               <div className="flex flex-col gap-1 relative z-10">
                 <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em]">Execution Status</span>
                 <span className={`text-2xl font-black uppercase tracking-tighter ${config.autopilot.enabled ? 'text-brand-500 dark:text-[#05FF00]' : 'text-red-500'}`}>
@@ -265,7 +265,7 @@ export const AutomationDashboard = () => {
       <GlassCard title="Tactical Payload Autopilot">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6">
-            <div className="flex items-center justify-between p-8 rounded-[32px] bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 relative overflow-hidden group">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 sm:gap-0 p-8 rounded-[32px] bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 relative overflow-hidden group">
               <div className="flex flex-col gap-1 relative z-10">
                 <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em]">Deployment Status</span>
                 <span className={`text-2xl font-black uppercase tracking-tighter ${config.customAutopilot?.enabled ? 'text-cyan-500' : 'text-red-500'}`}>
@@ -289,7 +289,7 @@ export const AutomationDashboard = () => {
             
             {/* PAYLOAD MODE SELECTOR */}
             <div className="space-y-6 bg-white dark:bg-white/5 p-8 rounded-[32px] border border-gray-100 dark:border-white/10">
-               <div className="flex items-center justify-between mb-2">
+               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-2">
                   <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest">Payload Protocol</label>
                   <div className="flex items-center gap-4">
                      <button 

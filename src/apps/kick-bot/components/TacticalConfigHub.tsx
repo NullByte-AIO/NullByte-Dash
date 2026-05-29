@@ -136,7 +136,7 @@ export const TacticalConfigHub = () => {
           <div className="p-8 rounded-[32px] bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 space-y-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em] ml-2">Neural Link (Kick URL)</label>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1 group">
                    <input 
                     type="text"
@@ -154,7 +154,7 @@ export const TacticalConfigHub = () => {
                 <button 
                   onClick={handleExtract}
                   disabled={isExtracting || !streamerLink}
-                  className="px-8 py-4 rounded-2xl bg-brand-500 text-white dark:bg-[#05FF00] dark:text-black text-[10px] font-black uppercase tracking-widest shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-brand-500 text-white dark:bg-[#05FF00] dark:text-black text-[10px] font-black uppercase tracking-widest shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
                   Extract
                 </button>
@@ -376,7 +376,7 @@ export const TacticalConfigHub = () => {
       <GlassCard title="Autopilot Protocols">
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex items-center justify-between p-6 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/5 group">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/5 group">
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest">Confirmation Cycle</span>
                 <span className="text-xs font-bold dark:text-white/60">Require manual approval every X min</span>
@@ -409,7 +409,7 @@ export const TacticalConfigHub = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-6 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/5 group">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/5 group">
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest">Auto-Terminate</span>
                 <span className="text-xs font-bold dark:text-white/60">End sequence if stream goes offline</span>

@@ -18,7 +18,7 @@ import {
   UserCircleIcon,
   BoltIcon,
 } from "../icons/index";
-import SidebarWidget from "./SidebarWidget";
+
 import NeuralLogo from "@/components/common/NeuralLogo";
 import { useBranding } from "@/context/BrandingContext";
 
@@ -273,7 +273,7 @@ const AppSidebar: React.FC = () => {
             </div>
           </div>
         </nav>
-        {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}
+
       </div>
     </aside>
   );

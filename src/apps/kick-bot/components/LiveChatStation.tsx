@@ -172,19 +172,19 @@ export const LiveChatStation = () => {
     <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-auto xl:h-[calc(100vh-200px)]">
       
       {/* MAIN CHAT AREA */}
-      <div className="xl:col-span-3 flex flex-col h-[600px] xl:h-full overflow-hidden border border-gray-100 dark:border-white/5 bg-white dark:bg-[#0A0A0B] rounded-[32px] shadow-sm dark:shadow-2xl relative">
+      <div className="xl:col-span-3 flex flex-col h-[60vh] md:h-[600px] xl:h-full overflow-hidden border border-gray-100 dark:border-white/5 bg-white dark:bg-[#0A0A0B] rounded-[32px] shadow-sm dark:shadow-2xl relative">
         
-        <div className="p-5 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-gray-50/50 dark:bg-black/20 relative z-30">
-           <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 pr-4 border-r border-gray-100 dark:border-white/5">
+        <div className="p-5 border-b border-gray-100 dark:border-white/5 flex flex-wrap md:flex-nowrap items-center justify-between gap-4 bg-gray-50/50 dark:bg-black/20 relative z-30">
+           <div className="flex items-center gap-4 w-full md:w-auto">
+              <div className="flex items-center gap-2 pr-4 border-r border-gray-100 dark:border-white/5 shrink-0">
                 <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" />
-                <span className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Live Feed</span>
+                <span className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest hidden sm:block">Live Feed</span>
               </div>
               
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative flex-1 md:flex-none" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center justify-between gap-3 min-w-[180px] bg-white dark:bg-[#121215] border border-gray-100 dark:border-white/10 rounded-xl px-4 py-2 text-[11px] font-bold text-gray-600 dark:text-white uppercase tracking-wider outline-none cursor-pointer hover:border-[#05FF00] transition-all shadow-sm"
+                  className="flex w-full md:w-auto items-center justify-between gap-3 min-w-[140px] md:min-w-[180px] bg-white dark:bg-[#121215] border border-gray-100 dark:border-white/10 rounded-xl px-4 py-2 text-[11px] font-bold text-gray-600 dark:text-white uppercase tracking-wider outline-none cursor-pointer hover:border-[#05FF00] transition-all shadow-sm"
                 >
                   <span className="truncate">{accounts[activePersonaIndex]?.username || 'Select Persona'}</span>
                   <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -213,18 +213,18 @@ export const LiveChatStation = () => {
               </div>
            </div>
 
-           <div className="flex items-center gap-3">
+           <div className="flex items-center gap-3 w-full md:w-auto justify-end shrink-0">
               {!autoScroll && (
                 <button 
                   onClick={() => setAutoScroll(true)}
-                  className="text-[10px] font-bold text-brand-500 dark:text-[#05FF00] uppercase tracking-wide px-3 py-1 bg-brand-500/10 rounded-full animate-bounce"
+                  className="text-[10px] font-bold text-brand-500 dark:text-[#05FF00] uppercase tracking-wide px-3 py-1 bg-brand-500/10 rounded-full animate-bounce shrink-0"
                 >
-                  Resume Auto-Scroll
+                  Resume
                 </button>
               )}
-              <div className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#05FF00]/20 bg-[#05FF00]/5">
+              <div className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#05FF00]/20 bg-[#05FF00]/5 shrink-0">
                  <div className="w-1.5 h-1.5 rounded-full bg-[#05FF00] animate-pulse" />
-                 <span className="text-[10px] font-black text-[#05FF00] uppercase tracking-widest">High-Speed Mode</span>
+                 <span className="text-[10px] font-black text-[#05FF00] uppercase tracking-widest hidden sm:block">High-Speed Mode</span>
               </div>
            </div>
         </div>
@@ -237,7 +237,7 @@ export const LiveChatStation = () => {
               setAutoScroll(scrollHeight - scrollTop <= clientHeight + 100);
             }
           }}
-          className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar bg-white dark:bg-transparent"
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 no-scrollbar bg-white dark:bg-transparent"
         >
           {messages.map((msg) => (
             <div key={msg.id} className={`flex flex-col group/msg ${msg.type === 'outgoing' ? 'items-end' : 'items-start'}`}>
@@ -249,14 +249,14 @@ export const LiveChatStation = () => {
               </div>
 
               {msg.replyTo && (
-                <div className={`mb-1 px-3 py-1.5 rounded-xl bg-white/5 border-l-2 border-[#05FF00]/40 max-w-[70%] flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-1 duration-300`}>
+                <div className={`mb-1 px-3 py-1.5 rounded-xl bg-white/5 border-l-2 border-[#05FF00]/40 max-w-[85%] md:max-w-[70%] flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-1 duration-300`}>
                   <span className="text-[9px] font-black text-[#05FF00] uppercase tracking-widest opacity-60">Replied to {msg.replyTo.user}</span>
                   <span className="text-[10px] text-white/30 truncate">{msg.replyTo.content}</span>
                 </div>
               )}
 
                 <div className="relative flex items-center gap-2 group/bubble">
-                  <div className={`px-5 py-2.5 rounded-2xl text-[14px] max-w-[85%] shadow-sm ${msg.type === 'outgoing' ? 'bg-brand-500 text-white dark:bg-[#05FF00] dark:text-black font-bold' : 'bg-gray-50 dark:bg-white/5 text-gray-700 dark:text-white/80'}`}>
+                  <div className={`px-4 md:px-5 py-2.5 rounded-2xl text-[13px] md:text-[14px] max-w-[90%] md:max-w-[85%] shadow-sm ${msg.type === 'outgoing' ? 'bg-brand-500 text-white dark:bg-[#05FF00] dark:text-black font-bold' : 'bg-gray-50 dark:bg-white/5 text-gray-700 dark:text-white/80'}`}>
                     {msg.content}
                   </div>
                   
@@ -265,7 +265,7 @@ export const LiveChatStation = () => {
                       setReplyingTo({ id: msg.id, user: msg.user, content: msg.content });
                       document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
                     }}
-                    className={`p-2 rounded-lg bg-white/5 text-white/20 hover:text-[#05FF00] hover:bg-[#05FF00]/10 opacity-0 group-hover/msg:opacity-100 transition-all duration-200 ${msg.type === 'outgoing' ? 'order-first' : ''}`}
+                    className={`p-2 rounded-lg bg-white/5 text-white/20 hover:text-[#05FF00] hover:bg-[#05FF00]/10 opacity-100 md:opacity-0 md:group-hover/msg:opacity-100 transition-all duration-200 ${msg.type === 'outgoing' ? 'order-first' : ''}`}
                     title={`Reply to ${msg.user}`}
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
@@ -277,24 +277,24 @@ export const LiveChatStation = () => {
 
         <div className="bg-gray-50/50 dark:bg-black/40 border-t border-gray-100 dark:border-white/5 relative z-30">
            {replyingTo && (
-             <div className="px-6 py-3 bg-brand-500/5 dark:bg-[#05FF00]/5 border-b border-brand-500/10 dark:border-[#05FF00]/10 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
+             <div className="px-4 md:px-6 py-3 bg-brand-500/5 dark:bg-[#05FF00]/5 border-b border-brand-500/10 dark:border-[#05FF00]/10 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
                <div className="flex items-center gap-3 overflow-hidden">
-                 <div className="w-1 h-8 rounded-full bg-brand-500 dark:bg-[#05FF00]" />
-                 <div className="flex flex-col">
-                   <span className="text-[10px] font-black text-brand-500 dark:text-[#05FF00] uppercase tracking-widest">Replying to {replyingTo.user}</span>
-                   <span className="text-xs text-gray-400 truncate max-w-[500px]">{replyingTo.content}</span>
+                 <div className="w-1 h-8 rounded-full bg-brand-500 dark:bg-[#05FF00] shrink-0" />
+                 <div className="flex flex-col overflow-hidden">
+                   <span className="text-[10px] font-black text-brand-500 dark:text-[#05FF00] uppercase tracking-widest truncate">Replying to {replyingTo.user}</span>
+                   <span className="text-xs text-gray-400 truncate max-w-[200px] md:max-w-[500px]">{replyingTo.content}</span>
                  </div>
                </div>
                <button 
                 onClick={() => setReplyingTo(null)}
-                className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
+                className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors shrink-0"
                >
                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                </button>
              </div>
            )}
 
-           <div className="p-6">
+           <div className="p-4 md:p-6">
              <div className="flex flex-col gap-3">
                 <div className="relative">
                   <input 
@@ -304,12 +304,12 @@ export const LiveChatStation = () => {
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     placeholder={replyingTo ? `Replying to ${replyingTo.user}...` : `Chatting as ${accounts[activePersonaIndex]?.username || '...'}`}
-                    className="w-full bg-white dark:bg-[#121215] border border-gray-200 dark:border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-[#05FF00] transition-all pr-24 dark:text-white dark:caret-[#05FF00] shadow-inner"
+                    className="w-full bg-white dark:bg-[#121215] border border-gray-200 dark:border-white/10 rounded-2xl px-4 md:px-6 py-4 text-sm outline-none focus:border-[#05FF00] transition-all pr-[80px] md:pr-24 dark:text-white dark:caret-[#05FF00] shadow-inner"
                   />
                   <TacticalTooltip title="Transmit Signal" description="Send the current payload into the live neural uplink.">
                     <button 
                       onClick={() => handleSendMessage()}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 rounded-xl bg-gray-900 text-white dark:bg-[#05FF00] dark:text-black text-xs font-black uppercase tracking-wider shadow-lg hover:scale-[1.05] hover:shadow-[0_0_15px_rgba(5,255,0,0.4)] active:scale-[0.98] transition-all duration-200"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-4 md:px-6 py-2 rounded-xl bg-gray-900 text-white dark:bg-[#05FF00] dark:text-black text-[10px] md:text-xs font-black uppercase tracking-wider shadow-lg hover:scale-[1.05] hover:shadow-[0_0_15px_rgba(5,255,0,0.4)] active:scale-[0.98] transition-all duration-200"
                     >
                       Send
                     </button>
@@ -324,7 +324,7 @@ export const LiveChatStation = () => {
       <div className="flex flex-col gap-6 h-auto xl:h-full overflow-hidden" ref={libDropdownRef}>
          
          {/* EMOJI PICKER WITH CATEGORIES */}
-         <div className={`bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-[32px] p-5 flex flex-col transition-all duration-500 ease-in-out ${isEmojiMenuOpen ? 'h-[400px]' : 'h-20'}`}>
+         <div className={`bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-[32px] p-5 flex flex-col transition-all duration-500 ease-in-out ${isEmojiMenuOpen ? 'h-[350px] md:h-[400px]' : 'h-20'}`}>
             <div className="flex items-center justify-between mb-4 px-2">
                <div className="flex items-center gap-3">
                   <h3 className="text-sm font-black text-white/40 uppercase tracking-[0.4em] ml-2">Emoji Matrix</h3>

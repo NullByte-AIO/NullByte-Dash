@@ -59,7 +59,7 @@ export const DashboardHome = () => {
   return (
     <div className="min-h-screen space-y-10 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       {/* Cinematic Hero Section */}
-      <div className="relative group overflow-hidden rounded-[2.5rem] border border-white/[0.08] bg-[#0A0A0B] p-12 lg:p-20 shadow-2xl">
+      <div className="relative group overflow-hidden rounded-3xl md:rounded-[2.5rem] border border-white/[0.08] bg-[#0A0A0B] p-6 md:p-12 lg:p-20 shadow-2xl">
         {/* Animated Background Elements */}
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-neural-500/10 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/4 animate-pulse pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-500/5 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/4 pointer-events-none" />
@@ -71,7 +71,7 @@ export const DashboardHome = () => {
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white">System Online</span>
             </div>
             
-            <h1 className="text-6xl lg:text-7xl xl:text-8xl font-black tracking-tight text-white leading-[0.9]">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tight text-white leading-[1.1] md:leading-[0.9]">
               NULLBYTE <br />
               <span className="bg-gradient-to-r from-neural-500 to-cyan-300 bg-clip-text text-transparent">NEURAL</span> <br />
               DASHBOARD
@@ -81,13 +81,13 @@ export const DashboardHome = () => {
               Global administrative uplink established. Centralized control over your entire neural network architecture and multi-project operations.
             </p>
             
-            <div className="flex flex-wrap gap-6 pt-6">
-              <Link href="/kick-bot/overview" className="relative group/btn overflow-hidden px-10 py-4 bg-neural-500 rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_-10px_rgba(0,240,255,0.7)] border border-neural-400">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4 md:gap-6 pt-6">
+              <Link href="/kick-bot/overview" className="relative group/btn overflow-hidden w-full sm:w-auto px-8 md:px-10 py-4 bg-neural-500 rounded-2xl transition-all hover:scale-[1.02] sm:hover:scale-105 active:scale-95 shadow-[0_0_40px_-10px_rgba(0,240,255,0.7)] border border-neural-400 text-center">
                 <span className="relative z-10 text-white font-black uppercase text-xs tracking-[0.2em] drop-shadow-sm">Initialize Matrix</span>
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
               </Link>
               
-              <Link href="/kick-bot/logs" className="px-10 py-4 bg-white/[0.05] border border-white/20 text-white font-black uppercase text-xs tracking-[0.2em] rounded-2xl hover:bg-white/10 hover:border-white/40 transition-all backdrop-blur-xl inline-block text-center">
+              <Link href="/kick-bot/logs" className="w-full sm:w-auto px-8 md:px-10 py-4 bg-white/[0.05] border border-white/20 text-white font-black uppercase text-xs tracking-[0.2em] rounded-2xl hover:bg-white/10 hover:border-white/40 transition-all backdrop-blur-xl inline-block text-center">
                 Diagnostics
               </Link>
             </div>
