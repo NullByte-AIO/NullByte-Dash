@@ -170,7 +170,11 @@ export const AutomationDashboard = () => {
     }
   };
 
-  if (!config) return null;
+  if (!config || config.error || !config.autopilot) return (
+    <div className="py-20 flex flex-col items-center justify-center text-white/20">
+      <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Uplink...</span>
+    </div>
+  );
 
   return (
     <div className="space-y-8 pb-20">

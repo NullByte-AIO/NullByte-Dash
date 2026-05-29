@@ -24,6 +24,7 @@ export const AccountsControl = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
     message: string;
@@ -142,6 +143,41 @@ export const AccountsControl = () => {
     });
   };
 
+  const handleRecheckAll = async () => {
+    setIsChecking(true);
+    let currentAccounts = [...accounts];
+
+    for (let i = 0; i < currentAccounts.length; i++) {
+      const acc = currentAccounts[i];
+      if (acc.enabled && acc.token) {
+        try {
+          const res = await fetch("/api/kick-bot/command", {
+            method: "POST",
+            body: JSON.stringify({
+              action: "get_info",
+              token: acc.token,
+              username: acc.username
+            }),
+            headers: { "Content-Type": "application/json" },
+          });
+          const data = await res.json();
+          if (data.validation) {
+            currentAccounts[i] = {
+              ...acc,
+              status: data.validation.valid ? "ACTIVE" : data.validation.reason || "INVALID"
+            };
+          }
+        } catch (e) {
+          console.error("Check failed for", acc.username);
+        }
+      }
+    }
+
+    setAccounts(currentAccounts);
+    await saveAccounts(currentAccounts);
+    setIsChecking(false);
+  };
+
   const truncate = (str: string) => {
     if (!str) return "-";
     return str.length > 8 ? str.substring(0, 8) + "..." : str;
@@ -170,14 +206,26 @@ export const AccountsControl = () => {
             className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm outline-none focus:border-brand-500 dark:focus:border-[#05FF00] placeholder-gray-400 dark:placeholder-white/30 dark:text-white dark:caret-[#05FF00] transition-all shadow-sm"
           />
         </div>
-        <button 
-          onClick={() => { setEditingAccount(null); setIsModalOpen(true); }}
-          data-tooltip="Deploy Identity"
-          data-tooltip-desc="Initialize a new unit deployment by entering tactical credentials."
-          className="w-full md:w-auto px-8 py-3.5 rounded-2xl bg-brand-500 text-white dark:bg-[#05FF00] dark:text-black text-xs font-bold uppercase shadow-xl shadow-brand-500/20 dark:shadow-[#05FF00]/10 hover:translate-y-[-2px] transition-all"
-        >
-          Add New Account
-        </button>
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+          <button 
+            onClick={handleRecheckAll}
+            disabled={isChecking}
+            data-tooltip="Verify Uplinks"
+            data-tooltip-desc="Send a validation signal to re-verify the tokens of all registered accounts."
+            className="w-full md:w-auto px-8 py-3.5 rounded-2xl bg-gray-200 text-gray-800 dark:bg-white/10 dark:text-white text-xs font-bold uppercase hover:bg-white/20 transition-all border border-gray-300 dark:border-white/10 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isChecking && <div className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />}
+            {isChecking ? 'Verifying...' : 'Recheck All'}
+          </button>
+          <button 
+            onClick={() => { setEditingAccount(null); setIsModalOpen(true); }}
+            data-tooltip="Deploy Identity"
+            data-tooltip-desc="Initialize a new unit deployment by entering tactical credentials."
+            className="w-full md:w-auto px-8 py-3.5 rounded-2xl bg-brand-500 text-white dark:bg-[#05FF00] dark:text-black text-xs font-bold uppercase shadow-xl shadow-brand-500/20 dark:shadow-[#05FF00]/10 hover:translate-y-[-2px] transition-all"
+          >
+            Add New Account
+          </button>
+        </div>
       </div>
 
       <GlassCard className="!p-0 overflow-hidden">

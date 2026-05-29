@@ -87,13 +87,18 @@ const AppSidebar: React.FC = () => {
   useEffect(() => {
     if (openSubmenu !== null) {
       if (subMenuRefs.current[openSubmenu]) {
-        setSubMenuHeight((prevHeights) => ({
-          ...prevHeights,
-          [openSubmenu]: subMenuRefs.current[openSubmenu]?.scrollHeight || 0,
-        }));
+        // Recalculate after a tiny delay to ensure the DOM has updated from display:none or width changes
+        setTimeout(() => {
+          if (subMenuRefs.current[openSubmenu]) {
+            setSubMenuHeight((prevHeights) => ({
+              ...prevHeights,
+              [openSubmenu]: subMenuRefs.current[openSubmenu]?.scrollHeight || 0,
+            }));
+          }
+        }, 50);
       }
     }
-  }, [openSubmenu]);
+  }, [openSubmenu, isExpanded, isHovered, isMobileOpen]);
 
   const handleSubmenuToggle = (index: number) => {
     setOpenSubmenu((prev) => (prev === index ? null : index));

@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
+import Pusher from "pusher-js";
 import { GlassCard } from "../../../components/ui/GlassCard";
 import { BoltIcon, BoxCubeIcon, ChevronDownIcon, ListIcon, PlugInIcon } from "@/icons";
 import { TacticalTooltip } from "@/components/ui/TacticalTooltip";
@@ -7,6 +8,7 @@ import { TacticalTooltip } from "@/components/ui/TacticalTooltip";
 interface Message {
   id: string;
   user: string;
+  sender_id?: string | number;
   content: string;
   timestamp: string;
   type: 'incoming' | 'outgoing';
@@ -42,6 +44,15 @@ export const LiveChatStation = () => {
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState<string>("All Assets");
   const [openLibrary, setOpenLibrary] = useState<string | null>(null);
   
+  const [chatroomId, setChatroomId] = useState<string | null>(null);
+  const [pusherConnected, setPusherConnected] = useState(false);
+  const [isLiveFeedPaused, setIsLiveFeedPaused] = useState(false);
+  const liveFeedPausedRef = useRef(isLiveFeedPaused);
+
+  useEffect(() => {
+    liveFeedPausedRef.current = isLiveFeedPaused;
+  }, [isLiveFeedPaused]);
+  
   const chatRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const libDropdownRef = useRef<HTMLDivElement>(null);
@@ -68,7 +79,76 @@ export const LiveChatStation = () => {
     fetchChatLibraries();
     fetchEmojis();
     fetchEmojiCategories();
+    
+    // Fetch chatroomId from config
+    fetch("/api/kick-bot/config")
+      .then(res => res.json())
+      .then(data => {
+        if (data.chatroomId) setChatroomId(data.chatroomId);
+      })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!chatroomId) return;
+
+    const pusher = new Pusher('32cbd69e4b950bf97679', {
+      cluster: 'us2',
+    });
+
+    const channel = pusher.subscribe(`chatrooms.${chatroomId}.v2`);
+
+    pusher.connection.bind('connected', () => {
+      setPusherConnected(true);
+    });
+
+    pusher.connection.bind('disconnected', () => {
+      setPusherConnected(false);
+    });
+
+    channel.bind('App\\Events\\ChatMessageEvent', (data: any) => {
+      if (liveFeedPausedRef.current) return;
+
+      const incomingMsg: Message = {
+        id: data.id,
+        user: data.sender?.username || 'Unknown',
+        sender_id: data.sender?.id,
+        content: data.content,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: 'incoming'
+      };
+      
+      setMessages(prev => {
+        if (prev.some(m => m.id === incomingMsg.id)) return prev;
+
+        // Check if this incoming message matches a recent outgoing message we sent
+        const recentOutgoingIdx = prev.findIndex(m => 
+          m.type === 'outgoing' && 
+          m.user === incomingMsg.user && 
+          m.content === incomingMsg.content
+        );
+
+        if (recentOutgoingIdx !== -1) {
+          // Update the fake local message with the real Kick ID and Sender ID
+          const newArr = [...prev];
+          newArr[recentOutgoingIdx] = {
+            ...newArr[recentOutgoingIdx],
+            id: incomingMsg.id,
+            sender_id: incomingMsg.sender_id
+          };
+          return newArr;
+        }
+
+        return [...prev.slice(-149), incomingMsg];
+      });
+    });
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(`chatrooms.${chatroomId}.v2`);
+      pusher.disconnect();
+    };
+  }, [chatroomId]);
 
   useEffect(() => {
     if (autoScroll && chatRef.current) {
@@ -95,6 +175,14 @@ export const LiveChatStation = () => {
     setAccounts(Object.values(data.accounts || {}).filter((a: any) => a.enabled));
   };
 
+  const getStatusColor = (status: string | undefined) => {
+    if (!status) return "bg-gray-500";
+    const s = status.toUpperCase();
+    if (s === "ACTIVE") return "bg-[#05FF00] shadow-[0_0_8px_#05FF00]";
+    if (s === "UNCHECKED" || s === "NEW") return "bg-yellow-500 shadow-[0_0_8px_#eab308]";
+    return "bg-red-500 shadow-[0_0_8px_#ef4444]";
+  };
+
   const fetchChatLibraries = async () => {
     try {
       const res = await fetch("/api/kick-bot/chat-libraries");
@@ -119,12 +207,14 @@ export const LiveChatStation = () => {
       if (Array.isArray(data)) {
         setEmojis(data);
       }
-    } catch (e) {
-      console.error("EMOJI_FETCH_CRITICAL:", e);
+    } catch (e: any) {
+      if (e.message !== "API_UPLINK_FAILURE") {
+        console.error("EMOJI_FETCH_CRITICAL:", e);
+      }
     }
   };
 
-  const [replyingTo, setReplyingTo] = useState<{ id: string, user: string, content: string } | null>(null);
+  const [replyingTo, setReplyingTo] = useState<{ id: string, user: string, content: string, sender_id?: string | number } | null>(null);
 
   const handleSendMessage = async (customContent?: string) => {
     const content = customContent || inputValue;
@@ -132,8 +222,9 @@ export const LiveChatStation = () => {
 
     const activeAccount = accounts[activePersonaIndex];
     const newMsg: Message = {
-      id: Math.random().toString(),
+      id: crypto.randomUUID(),
       user: activeAccount.username,
+      sender_id: activeAccount.userId,
       content: content,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'outgoing',
@@ -145,19 +236,60 @@ export const LiveChatStation = () => {
     setAutoScroll(true);
     setOpenLibrary(null);
 
-    fetch("/api/kick-bot/command", {
-      method: "POST",
-      body: JSON.stringify({ 
-        action: "send_msg", 
-        token: activeAccount.token, 
-        message: content, 
-        humanMode: false,
-        reply_to: replyingTo?.id 
-      }),
-      headers: { "Content-Type": "application/json" },
-    });
+    let replyData = undefined;
+    if (replyingTo) {
+      const repliedAccount = accounts.find(a => a.username === replyingTo.user);
+      
+      let finalSenderId = replyingTo.sender_id;
+      if (!finalSenderId && repliedAccount) {
+        finalSenderId = parseInt(repliedAccount.userId) || 0;
+      }
+      
+      replyData = {
+        original_message_id: replyingTo.id,
+        original_message_content: replyingTo.content,
+        original_sender_id: finalSenderId || 0,
+        original_sender_username: replyingTo.user
+      };
+      
+      // Clear the reply UI indicator instantly
+      setReplyingTo(null);
+    }
 
-    setReplyingTo(null);
+    try {
+      const response = await fetch("/api/kick-bot/command", {
+        method: "POST",
+        body: JSON.stringify({ 
+          action: "send_msg", 
+          token: activeAccount.token, 
+          message: content, 
+          humanMode: false,
+          replyData: replyData 
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.id) {
+          setMessages(prev => {
+            const idx = prev.findIndex(m => m.id === newMsg.id);
+            if (idx !== -1) {
+              const newArr = [...prev];
+              newArr[idx] = {
+                ...newArr[idx],
+                id: result.id,
+                sender_id: result.sender_id
+              };
+              return newArr;
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to send message", error);
+    }
   };
 
   const emojiList = Array.isArray(emojis) ? emojis : [];
@@ -176,17 +308,28 @@ export const LiveChatStation = () => {
         
         <div className="p-5 border-b border-gray-100 dark:border-white/5 flex flex-wrap md:flex-nowrap items-center justify-between gap-4 bg-gray-50/50 dark:bg-black/20 relative z-30">
            <div className="flex items-center gap-4 w-full md:w-auto">
-              <div className="flex items-center gap-2 pr-4 border-r border-gray-100 dark:border-white/5 shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" />
-                <span className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest hidden sm:block">Live Feed</span>
-              </div>
+              <button 
+                onClick={() => setIsLiveFeedPaused(!isLiveFeedPaused)}
+                className={`flex items-center gap-2 pr-4 border-r border-gray-100 dark:border-white/5 shrink-0 transition-opacity ${isLiveFeedPaused ? 'opacity-50' : 'opacity-100 hover:opacity-80'}`}
+                title={isLiveFeedPaused ? "Resume Live Feed" : "Pause Live Feed"}
+              >
+                <div className={`w-2.5 h-2.5 rounded-full ${pusherConnected && !isLiveFeedPaused ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse' : 'bg-gray-500'}`} />
+                <span className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest hidden sm:block">
+                  {isLiveFeedPaused ? 'Feed Paused' : 'Live Feed'}
+                </span>
+              </button>
               
               <div className="relative flex-1 md:flex-none" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="flex w-full md:w-auto items-center justify-between gap-3 min-w-[140px] md:min-w-[180px] bg-white dark:bg-[#121215] border border-gray-100 dark:border-white/10 rounded-xl px-4 py-2 text-[11px] font-bold text-gray-600 dark:text-white uppercase tracking-wider outline-none cursor-pointer hover:border-[#05FF00] transition-all shadow-sm"
                 >
-                  <span className="truncate">{accounts[activePersonaIndex]?.username || 'Select Persona'}</span>
+                  <div className="flex items-center gap-2 truncate">
+                    {accounts.length > 0 && (
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${getStatusColor(accounts[activePersonaIndex]?.status)}`} />
+                    )}
+                    <span className="truncate">{accounts[activePersonaIndex]?.username || 'Select Persona'}</span>
+                  </div>
                   <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -204,7 +347,10 @@ export const LiveChatStation = () => {
                             ${activePersonaIndex === index ? 'bg-[#05FF00] text-black' : 'text-white/60 hover:bg-white/5 hover:text-white'}
                           `}
                         >
-                          {acc.username}
+                          <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${getStatusColor(acc.status)}`} />
+                            <span>{acc.username}</span>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -260,16 +406,18 @@ export const LiveChatStation = () => {
                     {msg.content}
                   </div>
                   
-                  <button 
-                    onClick={() => {
-                      setReplyingTo({ id: msg.id, user: msg.user, content: msg.content });
-                      document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
-                    }}
-                    className={`p-2 rounded-lg bg-white/5 text-white/20 hover:text-[#05FF00] hover:bg-[#05FF00]/10 opacity-100 md:opacity-0 md:group-hover/msg:opacity-100 transition-all duration-200 ${msg.type === 'outgoing' ? 'order-first' : ''}`}
-                    title={`Reply to ${msg.user}`}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
-                  </button>
+                  {msg.user !== accounts[activePersonaIndex]?.username && (
+                    <button 
+                      onClick={() => {
+                        setReplyingTo({ id: msg.id, user: msg.user, content: msg.content, sender_id: msg.sender_id });
+                        document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
+                      }}
+                      className={`p-2 rounded-lg bg-white/5 text-white/20 hover:text-[#05FF00] hover:bg-[#05FF00]/10 opacity-100 md:opacity-0 md:group-hover/msg:opacity-100 transition-all duration-200 ${msg.type === 'outgoing' ? 'order-first' : ''}`}
+                      title={`Reply to ${msg.user}`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    </button>
+                  )}
                 </div>
             </div>
           ))}

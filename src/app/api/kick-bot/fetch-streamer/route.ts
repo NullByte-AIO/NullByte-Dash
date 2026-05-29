@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getBackendUrl, getHeaders } from "@/lib/kickbot-logger";
+import { safeFetch, getBackendUrl, getHeaders } from "@/lib/kickbot-logger";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const res = await fetch(getBackendUrl("/api/fetch-streamer"), {
+    const res = await safeFetch("/api/fetch-streamer", {
       method: "POST",
-      headers: getHeaders(),
+      
       body: JSON.stringify(body),
     });
 
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     }
 
     const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, { status: res.status });
   } catch (error) {
     console.error("Fetch Streamer Error:", error);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });

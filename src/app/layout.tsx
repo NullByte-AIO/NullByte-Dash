@@ -4,6 +4,7 @@ import './globals.css';
 import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { BrandingProvider } from '@/context/BrandingContext';
+import { BackendGuard } from '@/components/common/BackendGuard';
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -24,7 +25,9 @@ export default function RootLayout({
       <body className={`${outfit.className} dark:bg-gray-900`}>
         <BrandingProvider>
           <ThemeProvider>
-            <SidebarProvider>{children}</SidebarProvider>
+            <SidebarProvider>
+               <BackendGuard>{children}</BackendGuard>
+            </SidebarProvider>
           </ThemeProvider>
         </BrandingProvider>
       </body>

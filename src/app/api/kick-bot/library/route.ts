@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBackendUrl, getHeaders } from "@/lib/kickbot-logger";
+import { safeFetch, getBackendUrl, getHeaders } from "@/lib/kickbot-logger";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -10,8 +10,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const res = await fetch(getBackendUrl(`/api/library?type=${type}`), {
-      headers: getHeaders(),
+    const res = await safeFetch(`/api/library?type=${type}`, {
+      
       cache: "no-store",
     });
 
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     }
 
     const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, { status: res.status });
   } catch (e) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
@@ -37,9 +37,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const res = await fetch(getBackendUrl(`/api/library?type=${type}`), {
+    const res = await safeFetch(`/api/library?type=${type}`, {
       method: "POST",
-      headers: getHeaders(),
+      
       body: JSON.stringify(data),
     });
     const result = await res.json();
