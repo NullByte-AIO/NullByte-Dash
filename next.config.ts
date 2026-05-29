@@ -33,6 +33,20 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async redirects() {
+    return [
+      {
+        source: "/",
+        destination: "/kick-bot/overview",
+        permanent: true,
+      },
+      {
+        source: "/kick-bot",
+        destination: "/kick-bot/overview",
+        permanent: true,
+      }
+    ];
+  },
 };
 
 export default nextConfig;
