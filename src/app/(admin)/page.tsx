@@ -1,11 +1,5 @@
-import { DashboardHome } from "@/apps/kick-bot/components/DashboardHome";
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Neural Home | NullByte Dash",
-  description: "Advanced Neural Command Center for Kick Bot Operations",
-};
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <DashboardHome />;
+  redirect("/kick-bot/overview");
 }

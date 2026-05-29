@@ -6,8 +6,8 @@ export default function SidebarWidget() {
       className="mx-auto mb-10 w-full max-w-60 rounded-3xl bg-white/[0.03] px-4 py-6 text-center border border-white/10 dark:shadow-[0_0_20px_rgba(0,210,255,0.05)]"
     >
       <div className="flex justify-center mb-3">
-        <div className="w-10 h-10 rounded-xl bg-black border border-white/10 flex items-center justify-center group-hover:border-[#00D2FF]/40 transition-all shadow-[0_0_15px_rgba(0,210,255,0.1)]">
-          <span className="text-white font-black text-xs tracking-tighter">N<span className="text-[#00D2FF]">B</span></span>
+        <div className="w-12 h-12 flex-shrink-0">
+          <img src="/images/logo/nb-icon.png" alt="NB" className="w-12 h-12 rounded-xl shadow-[0_0_15px_rgba(0,210,255,0.1)]" />
         </div>
       </div>
       <h3 className="mb-2 text-sm font-black text-gray-900 uppercase tracking-tighter dark:text-white">

@@ -137,8 +137,8 @@ export const MatrixManager = () => {
       <div className="flex items-center gap-4 p-2 bg-white/5 border border-white/10 rounded-[32px] w-fit">
          <button 
            onClick={() => setActiveTab("chat")}
-           className={`px-8 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3
-             ${activeTab === "chat" ? 'bg-[#05FF00] text-black shadow-[0_0_20px_rgba(5,255,0,0.3)]' : 'text-white/40 hover:text-white hover:bg-white/5'}
+           className={`px-8 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 border
+             ${activeTab === "chat" ? 'bg-neural-500 text-black border-neural-400 shadow-[0_0_20px_rgba(0,240,255,0.3)]' : 'border-transparent text-white/40 hover:text-white hover:bg-white/5'}
            `}
          >
            <ListIcon className="w-4 h-4" />
@@ -146,8 +146,8 @@ export const MatrixManager = () => {
          </button>
          <button 
            onClick={() => setActiveTab("emoji")}
-           className={`px-8 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3
-             ${activeTab === "emoji" ? 'bg-[#05FF00] text-black shadow-[0_0_20px_rgba(5,255,0,0.3)]' : 'text-white/40 hover:text-white hover:bg-white/5'}
+           className={`px-8 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 border
+             ${activeTab === "emoji" ? 'bg-neural-500 text-black border-neural-400 shadow-[0_0_20px_rgba(0,240,255,0.3)]' : 'border-transparent text-white/40 hover:text-white hover:bg-white/5'}
            `}
          >
            <BoxCubeIcon className="w-4 h-4" />
@@ -167,7 +167,7 @@ export const MatrixManager = () => {
                       value={newCatName}
                       onChange={(e) => setNewCatName(e.target.value)}
                       placeholder="Enter identity..."
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-[#05FF00] transition-all text-white"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-neural-500 transition-all text-white"
                     />
                  </div>
                  <div className="space-y-2">
@@ -177,7 +177,7 @@ export const MatrixManager = () => {
                       onChange={(e) => setChatBuffer(e.target.value)}
                       placeholder="LFG&#10;POG&#10;MASSIVE"
                       rows={6}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-[#05FF00] transition-all text-white font-mono no-scrollbar"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-neural-500 transition-all text-white font-mono no-scrollbar"
                     />
                  </div>
                  <button 
@@ -187,7 +187,7 @@ export const MatrixManager = () => {
                     setChatBuffer("");
                   }}
                   disabled={!newCatName || !chatBuffer}
-                  className="w-full py-5 rounded-2xl bg-[#05FF00] text-black text-[10px] font-black uppercase tracking-[0.3em] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-20 shadow-[0_0_30px_rgba(5,255,0,0.1)]"
+                  className="w-full py-5 rounded-2xl bg-gradient-to-r from-neural-500 to-cyan-500 text-black text-[11px] font-black uppercase tracking-[0.25em] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-20 shadow-[0_0_30px_rgba(0,240,255,0.25)] border border-neural-400"
                  >
                     Initialize Category
                  </button>
@@ -198,12 +198,14 @@ export const MatrixManager = () => {
            <div className="flex flex-col gap-4">
               <h3 className="text-sm font-black text-white/40 uppercase tracking-[0.4em] ml-6">Tactical Reserves</h3>
               <div className="space-y-6 max-h-[630px] overflow-y-auto no-scrollbar pr-4">
-              {Object.entries(chatLibraries).map(([name, msgs]) => (
-                <div key={name} className="group relative bg-[#0F0F12] border border-white/10 rounded-[40px] p-8 hover:border-[#05FF00]/40 transition-all overflow-hidden">
+              {Object.entries(chatLibraries).map(([name, msgs]) => {
+                if (!Array.isArray(msgs)) return null;
+                return (
+                  <div key={name} className="group relative bg-[#0F0F12] border border-white/10 rounded-[40px] p-8 hover:border-neural-500/40 transition-all overflow-hidden">
                    <div className="flex items-center justify-between mb-6 relative z-10">
                       <div className="flex items-center gap-4">
                          <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
-                            <FolderIcon className="w-6 h-6 text-[#05FF00]" />
+                            <FolderIcon className="w-6 h-6 text-neural-500" />
                          </div>
                          <div>
                             <h4 className="text-lg font-black text-white uppercase tracking-tighter">{name}</h4>
@@ -251,7 +253,8 @@ export const MatrixManager = () => {
                       <ListIcon className="w-40 h-40" />
                    </div>
                 </div>
-              ))}
+              );
+              })}
               </div>
            </div>
         </div>
@@ -268,7 +271,7 @@ export const MatrixManager = () => {
                       disabled={!!isEditingEmoji}
                       onChange={(e) => setNewCatName(e.target.value)}
                       placeholder="e.g. Reaction_Set_A"
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-[#05FF00] transition-all text-white disabled:opacity-40"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-neural-500 transition-all text-white disabled:opacity-40"
                     />
                  </div>
                  
@@ -280,7 +283,7 @@ export const MatrixManager = () => {
                            key={emoji.name}
                            onClick={() => toggleEmojiInSelection(emoji.name)}
                            className={`aspect-square rounded-xl border flex items-center justify-center transition-all relative overflow-hidden
-                             ${selectedEmojis.includes(emoji.name) ? 'border-[#05FF00] bg-[#05FF00]/10' : 'border-white/10 bg-white/5 hover:border-white/20'}
+                             ${selectedEmojis.includes(emoji.name) ? 'border-neural-500 bg-neural-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}
                            `}
                          >
                             {emoji.image ? (
@@ -289,7 +292,7 @@ export const MatrixManager = () => {
                               <span className="text-[8px] font-mono text-white/40">{emoji.name.slice(0, 2)}</span>
                             )}
                             {selectedEmojis.includes(emoji.name) && (
-                              <div className="absolute top-0 right-0 p-0.5 bg-[#05FF00] rounded-bl-lg">
+                              <div className="absolute top-0 right-0 p-0.5 bg-neural-500 rounded-bl-lg">
                                 <CheckLineIcon className="w-2 h-2 text-black" />
                               </div>
                             )}
@@ -307,7 +310,7 @@ export const MatrixManager = () => {
                     <button 
                       onClick={handleSaveEmojiCategory}
                       disabled={(!isEditingEmoji && !newCatName) || selectedEmojis.length === 0}
-                      className="flex-[2] py-5 rounded-2xl bg-[#05FF00] text-black text-[10px] font-black uppercase tracking-[0.3em] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-20 shadow-[0_0_30px_rgba(5,255,0,0.1)]"
+                      className="flex-[2] py-5 rounded-2xl bg-gradient-to-r from-neural-500 to-cyan-500 text-black text-[11px] font-black uppercase tracking-[0.25em] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-20 shadow-[0_0_30px_rgba(0,240,255,0.25)] border border-neural-400"
                     >
                         {isEditingEmoji ? 'Commit Synchronization' : 'Initialize Matrix'}
                     </button>
@@ -319,12 +322,14 @@ export const MatrixManager = () => {
            <div className="flex flex-col gap-4">
               <h3 className="text-sm font-black text-white/40 uppercase tracking-[0.4em] ml-6">Active Formations</h3>
               <div className="space-y-6 max-h-[630px] overflow-y-auto no-scrollbar pr-4">
-              {Object.entries(emojiCategories).map(([name, items]) => (
-                <div key={name} className="group relative bg-[#0F0F12] border border-white/10 rounded-[40px] p-8 hover:border-[#05FF00]/40 transition-all overflow-hidden">
+              {Object.entries(emojiCategories).map(([name, items]) => {
+                if (!Array.isArray(items)) return null;
+                return (
+                  <div key={name} className="group relative bg-[#0F0F12] border border-white/10 rounded-[40px] p-8 hover:border-neural-500/40 transition-all overflow-hidden">
                    <div className="flex items-center justify-between mb-6 relative z-10">
                       <div className="flex items-center gap-4">
                          <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
-                            <BoxCubeIcon className="w-6 h-6 text-[#05FF00]" />
+                            <BoxCubeIcon className="w-6 h-6 text-neural-500" />
                          </div>
                          <div>
                             <h4 className="text-lg font-black text-white uppercase tracking-tighter">{name}</h4>
@@ -365,7 +370,7 @@ export const MatrixManager = () => {
                       {items.slice(0, 15).map((eName) => {
                         const emoji = Array.isArray(allEmojis) ? allEmojis.find(e => e.name === eName) : null;
                         return (
-                          <div key={eName} className="w-8 h-8 rounded-lg bg-black flex items-center justify-center border border-white/5 group-hover:border-[#05FF00]/20 transition-colors">
+                          <div key={eName} className="w-8 h-8 rounded-lg bg-black flex items-center justify-center border border-white/5 group-hover:border-neural-500/20 transition-colors">
                              {emoji?.image ? (
                                <img src={`/images/emojis/${emoji.image}`} className="w-5 h-5 object-contain" />
                              ) : (
@@ -381,7 +386,8 @@ export const MatrixManager = () => {
                       <BoxCubeIcon className="w-40 h-40" />
                    </div>
                 </div>
-              ))}
+              );
+              })}
               </div>
            </div>
         </div>
@@ -394,7 +400,7 @@ export const MatrixManager = () => {
            <div className="relative w-full max-w-xl bg-[#0F0F12] border border-white/10 rounded-[40px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 z-10">
               <div className="p-8 border-b border-white/10 flex items-center justify-between bg-white/5">
                  <div className="flex items-center gap-4">
-                    <PencilIcon className="w-6 h-6 text-[#05FF00]" />
+                    <PencilIcon className="w-6 h-6 text-neural-500" />
                     <h3 className="text-xl font-black text-white uppercase tracking-tighter">Reconfiguring: {isEditingChat}</h3>
                  </div>
                  <button onClick={() => setIsEditingChat(null)} className="w-10 h-10 rounded-xl hover:bg-white/5 flex items-center justify-center text-white/40 transition-colors">
@@ -405,11 +411,11 @@ export const MatrixManager = () => {
                  <textarea 
                   value={chatBuffer}
                   onChange={(e) => setChatBuffer(e.target.value)}
-                  className="w-full h-80 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-[#05FF00] transition-all text-white font-mono no-scrollbar"
+                  className="w-full h-80 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-neural-500 transition-all text-white font-mono no-scrollbar"
                  />
                  <div className="flex gap-4">
                    <button onClick={() => setIsEditingChat(null)} className="flex-1 py-4 rounded-2xl border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5 transition-all">Cancel</button>
-                   <button onClick={() => handleSaveChat(isEditingChat, chatBuffer)} className="flex-[2] py-4 rounded-2xl bg-[#05FF00] text-black text-[10px] font-black uppercase tracking-[0.3em] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_30px_rgba(5,255,0,0.2)]">Commit Changes</button>
+                   <button onClick={() => handleSaveChat(isEditingChat, chatBuffer)} className="flex-[2] py-4 rounded-2xl bg-gradient-to-r from-neural-500 to-cyan-500 text-black text-[11px] font-black uppercase tracking-[0.25em] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_30px_rgba(0,240,255,0.25)] border border-neural-400">Commit Changes</button>
                  </div>
               </div>
            </div>
@@ -437,7 +443,7 @@ export const MatrixManager = () => {
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(5, 255, 0, 0.2);
+          background: rgba(0, 240, 255, 0.2);
         }
         
         body.modal-open .main-content-background {

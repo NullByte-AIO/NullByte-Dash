@@ -1,14 +1,51 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { GlassCard } from "../../../components/ui/GlassCard";
 import Link from "next/link";
-import { BoxCubeIcon, UserCircleIcon, ListIcon, PlugInIcon } from "../../../icons";
+import { BoxCubeIcon, BoltIcon, ListIcon, PlugInIcon } from "../../../icons";
 
 export const DashboardHome = () => {
+  const [accountCount, setAccountCount] = useState<number | null>(null);
+  const [recentLogs, setRecentLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchAccounts();
+    fetchLogs();
+  }, []);
+
+  const fetchAccounts = async () => {
+    try {
+      const res = await fetch("/api/kick-bot/accounts");
+      const data = await res.json();
+      const accounts = Object.values(data.accounts || {});
+      setAccountCount(accounts.length);
+    } catch (e) {
+      setAccountCount(0);
+    }
+  };
+
+  const fetchLogs = async () => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const res = await fetch(`/api/kick-bot/logs?date=${today}&category=ALL`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        // Reverse to get the latest first, then take the top 5
+        setRecentLogs(data.reverse().slice(0, 5));
+      }
+    } catch (e) {}
+  };
+
   const stats = [
-    { label: "Managed Apps", value: "01", trend: "Active", accent: "text-neural-300", glow: "shadow-neural-500/20" },
+    { 
+      label: "Managed Apps", 
+      value: accountCount !== null ? (accountCount < 10 ? `0${accountCount}` : accountCount.toString()) : "...", 
+      trend: accountCount !== null ? "Active" : "Scanning...", 
+      accent: "text-neural-300", 
+      glow: "shadow-neural-500/20" 
+    },
     { label: "System Health", value: "Optimal", trend: "Stable", accent: "text-neural-300", glow: "shadow-neural-500/10" },
-    { label: "Neural Load", value: "84%", trend: "+5%", accent: "text-purple-300", glow: "shadow-purple-500/10" },
+    { label: "Neural Load", value: "---", trend: "Nominal", accent: "text-purple-300", glow: "shadow-purple-500/10" },
     { label: "Security Core", value: "Shielded", trend: "Protected", accent: "text-neural-300", glow: "shadow-neural-500/10" },
   ];
 
@@ -16,7 +53,7 @@ export const DashboardHome = () => {
     { name: "Global Logs", path: "/kick-bot/logs", icon: <ListIcon />, desc: "Unified diagnostic stream for all active modules." },
     { name: "App Matrix", path: "/kick-bot/overview", icon: <BoxCubeIcon />, desc: "Manage and monitor your deployed applications." },
     { name: "Safety Protocol", path: "/kick-bot/config", icon: <PlugInIcon />, desc: "Global encryption and safety interlocks." },
-    { name: "Root Profile", path: "/profile", icon: <UserCircleIcon />, desc: "Operator identity & security signatures." },
+    { name: "Autopilot", path: "/kick-bot/automation", icon: <BoltIcon />, desc: "Deploy standard and custom autopilot modules." },
   ];
 
   return (
@@ -50,9 +87,9 @@ export const DashboardHome = () => {
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
               </Link>
               
-              <button className="px-10 py-4 bg-white/[0.05] border border-white/20 text-white font-black uppercase text-xs tracking-[0.2em] rounded-2xl hover:bg-white/10 hover:border-white/40 transition-all backdrop-blur-xl">
+              <Link href="/kick-bot/logs" className="px-10 py-4 bg-white/[0.05] border border-white/20 text-white font-black uppercase text-xs tracking-[0.2em] rounded-2xl hover:bg-white/10 hover:border-white/40 transition-all backdrop-blur-xl inline-block text-center">
                 Diagnostics
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -206,18 +243,29 @@ export const DashboardHome = () => {
 
         <GlassCard title="Neural Activity" className="h-full">
           <div className="space-y-6 mt-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="group flex items-start gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] transition-all">
-                <div className={`mt-1.5 w-1.5 h-1.5 rounded-full ${i === 1 ? 'bg-neural-500 shadow-[0_0_10px_rgba(0,240,255,0.5)]' : 'bg-gray-700'}`} />
-                <div className="flex-1">
-                  <p className="text-[11px] text-gray-400 group-hover:text-gray-100 transition-colors">
-                    <span className="text-neural-500 font-bold uppercase tracking-tighter mr-2">Core_Update:</span> 
-                    Protocol phase 0{i} synchronization established.
-                  </p>
-                  <p className="text-[9px] text-gray-600 uppercase tracking-tighter mt-1">Status Nominal • {i * 4}m ago</p>
+            {recentLogs.length > 0 ? recentLogs.map((log, i) => {
+              const isError = log.level === "ERROR";
+              const isWarn = log.level === "WARN";
+              
+              return (
+                <div key={i} className="group flex items-start gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] transition-all">
+                  <div className={`mt-1.5 w-1.5 h-1.5 shrink-0 rounded-full ${isError ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : isWarn ? 'bg-orange-500' : 'bg-[#05FF00] shadow-[0_0_10px_rgba(5,255,0,0.5)]'}`} />
+                  <div className="flex-1 overflow-hidden">
+                    <p className="text-[11px] text-gray-400 group-hover:text-gray-100 transition-colors truncate">
+                      <span className={`${isError ? 'text-red-500' : isWarn ? 'text-orange-500' : 'text-[#05FF00]'} font-bold uppercase tracking-tighter mr-2`}>
+                        {log.category}:
+                      </span> 
+                      {log.message}
+                    </p>
+                    <p className="text-[9px] text-gray-600 uppercase tracking-tighter mt-1">{log.timestamp}</p>
+                  </div>
                 </div>
+              );
+            }) : (
+              <div className="py-10 flex flex-col items-center justify-center text-white/20">
+                <span className="text-[10px] font-black uppercase tracking-widest">No Recent Activity</span>
               </div>
-            ))}
+            )}
             <Link href="/kick-bot/logs" className="block text-center py-4 rounded-xl bg-white/5 text-[10px] font-black uppercase tracking-[0.3em] text-gray-200 hover:text-neural-500 hover:bg-neural-500/5 transition-all">
               Full Archive Access
             </Link>

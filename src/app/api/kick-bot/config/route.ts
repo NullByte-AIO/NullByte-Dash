@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
-
-const BOT_DIR = "k:/Development/NullByte/NullByte Kick Backend";
-const CONFIG_PATH = path.join(BOT_DIR, "config.json");
+import { getBackendUrl, getHeaders } from "@/lib/kickbot-logger";
 
 export async function GET() {
   try {
-    const data = fs.readFileSync(CONFIG_PATH, "utf8");
-    return NextResponse.json(JSON.parse(data));
+    const res = await fetch(getBackendUrl("/api/config"), {
+      headers: getHeaders(),
+      cache: "no-store",
+    });
+    const data = await res.json();
+    return NextResponse.json(data);
   } catch (error) {
     return NextResponse.json({ error: "Failed to read config" }, { status: 500 });
   }
@@ -17,8 +17,13 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const newConfig = await request.json();
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2));
-    return NextResponse.json({ success: true });
+    const res = await fetch(getBackendUrl("/api/config"), {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(newConfig),
+    });
+    const data = await res.json();
+    return NextResponse.json(data);
   } catch (error) {
     return NextResponse.json({ error: "Failed to update config" }, { status: 500 });
   }

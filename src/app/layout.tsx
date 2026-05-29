@@ -1,9 +1,9 @@
 import { Metadata } from "next";
 import { Outfit } from 'next/font/google';
 import './globals.css';
-import "flatpickr/dist/flatpickr.css";
 import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { BrandingProvider } from '@/context/BrandingContext';
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -22,9 +22,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${outfit.className} dark:bg-gray-900`}>
-        <ThemeProvider>
-          <SidebarProvider>{children}</SidebarProvider>
-        </ThemeProvider>
+        <BrandingProvider>
+          <ThemeProvider>
+            <SidebarProvider>{children}</SidebarProvider>
+          </ThemeProvider>
+        </BrandingProvider>
       </body>
     </html>
   );

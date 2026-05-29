@@ -26,6 +26,7 @@ interface Emoji {
   id: string | null;
   url: string | null;
   image: string;
+  enabled?: boolean;
 }
 
 export const LiveChatStation = () => {
@@ -67,20 +68,6 @@ export const LiveChatStation = () => {
     fetchChatLibraries();
     fetchEmojis();
     fetchEmojiCategories();
-    
-    const interval = setInterval(() => {
-       const mockUsers = ["xQc_Fan", "LulMaster", "KickBot_99", "Shadow"];
-       const mockMsgs = ["LFG", "pog", "W", "massive", "nice", "EZ", "kek", "777"];
-       const mockMsg: Message = {
-         id: Math.random().toString(),
-         user: mockUsers[Math.floor(Math.random() * mockUsers.length)],
-         content: mockMsgs[Math.floor(Math.random() * mockMsgs.length)],
-         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-         type: 'incoming'
-       };
-       setMessages(prev => [...prev.slice(-99), mockMsg]);
-    }, 4000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

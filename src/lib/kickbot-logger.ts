@@ -1,29 +1,43 @@
-import fs from "fs";
-import path from "path";
+/**
+ * Shared helper for KickBot backend API communication.
+ * All dashboard API routes use this to proxy requests to the Express backend
+ * instead of reading files directly from disk.
+ */
 
-const BOT_DIR = "k:/Development/NullByte/NullByte Kick Backend";
-const LOGS_DIR = path.join(BOT_DIR, "logs");
+const BACKEND_URL = process.env.KICKBOT_BACKEND_URL || "http://localhost:3001";
+const API_SECRET = process.env.KICKBOT_API_SECRET || "";
 
-export function logAction(category: string, message: string, level: string = "INFO") {
+export function getBackendUrl(path: string): string {
+  return `${BACKEND_URL}${path}`;
+}
+
+export function getHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (API_SECRET) {
+    headers["x-api-key"] = API_SECRET;
+  }
+  return headers;
+}
+
+/**
+ * Log an action through the backend API (appends to daily log file on the backend).
+ */
+export async function logAction(category: string, message: string, level: string = "INFO") {
   try {
-    if (!fs.existsSync(LOGS_DIR)) {
-      fs.mkdirSync(LOGS_DIR, { recursive: true });
-    }
-
-    const now = new Date();
-    const dateStr = now.toISOString().split("T")[0];
-    const timestamp = now.toLocaleTimeString();
-    
-    const logFile = path.join(LOGS_DIR, `${dateStr}.log`);
-    const logEntry = JSON.stringify({
-      timestamp,
-      level: level.toUpperCase(),
-      category: category.toUpperCase(),
-      message
+    // Post a log entry as a command that the backend picks up
+    await fetch(getBackendUrl("/api/command"), {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({
+        action: "log",
+        category,
+        message,
+        level,
+      }),
     });
-
-    fs.appendFileSync(logFile, logEntry + "\n");
   } catch (err) {
-    console.error(`Failed to write to web log file: ${err}`);
+    console.error(`Failed to send log to backend: ${err}`);
   }
 }
