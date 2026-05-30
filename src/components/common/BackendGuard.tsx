@@ -1,9 +1,11 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { BoltIcon } from "@/icons";
+import { usePathname } from "next/navigation";
 
 export const BackendGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isBackendOffline, setIsBackendOffline] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const checkBackendHealth = async () => {
@@ -20,9 +22,7 @@ export const BackendGuard: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     checkBackendHealth();
-    const interval = setInterval(checkBackendHealth, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [pathname]);
 
   return (
     <>

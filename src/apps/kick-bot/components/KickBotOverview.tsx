@@ -4,20 +4,17 @@ import { GroupIcon, BoxIconLine, ListIcon, BoltIcon } from "@/icons";
 
 export const KickBotOverview = () => {
   const [stats, setStats] = useState<any>(null);
-  const [logs, setLogs] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [configRes, accountsRes, logsRes] = await Promise.all([
+        const [configRes, accountsRes] = await Promise.all([
           fetch("/api/kick-bot/config"),
-          fetch("/api/kick-bot/accounts"),
-          fetch("/api/kick-bot/logs")
+          fetch("/api/kick-bot/accounts")
         ]);
         
         const config = await configRes.json();
         const db = await accountsRes.json();
-        const logsData = await logsRes.json();
         
         const accounts = Object.values(db.accounts || {});
         setStats({
@@ -26,14 +23,10 @@ export const KickBotOverview = () => {
           disabledAccounts: accounts.filter((a: any) => a.enabled === false).length,
           autopilotStatus: config.autopilot?.enabled || false,
         });
-        
-        setLogs(logsData.logs?.slice(-20) || []);
       } catch (e) {}
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   const getStatItems = () => {
@@ -177,64 +170,7 @@ export const KickBotOverview = () => {
         })}
       </div>
 
-      {/* MATRIX STREAM CONTAINER */}
-      <div className="relative overflow-hidden rounded-[32px] border-2 border-[#05FF00]/30 dark:bg-[#050506] shadow-[0_0_40px_rgba(5,255,0,0.15)] group">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#05FF00]/5 blur-[120px] pointer-events-none transition-opacity group-hover:opacity-100 opacity-60" />
-
-        {/* HEADER */}
-        <div className="relative z-10 p-6 border-b border-white/5 flex items-center justify-between bg-black/20">
-          <div className="flex items-center gap-3">
-             <div className="w-2 h-2 rounded-full bg-[#05FF00] shadow-[0_0_12px_#05FF00]" />
-             <div className="flex items-center gap-2">
-                <div className="h-5 w-[3px] bg-[#05FF00]" />
-                <h3 className="text-base font-bold text-white tracking-tight">Kernel Execution Stream</h3>
-             </div>
-          </div>
-        </div>
-        
-        {/* LOG FEED */}
-        <div className="relative z-10 p-7 h-[450px] overflow-y-auto no-scrollbar bg-black/40">
-           <div className="space-y-1.5 font-mono text-[11px] leading-relaxed">
-             {logs.length > 0 ? logs.map((log, i) => {
-               const lineNum = (100 + i).toString().padStart(4, '0');
-               return (
-                 <div key={i} className="flex gap-4 items-start group/line">
-                   <span className="text-gray-700 shrink-0 select-none">{lineNum}</span>
-                   <div className="flex flex-wrap gap-2">
-                      <span className="text-[#05FF00] font-bold">[SYNC]</span>
-                      <span className="text-gray-500">[Account System]</span>
-                      <span className={`text-gray-300 group-hover/line:text-white transition-colors ${log.toLowerCase().includes('error') ? 'text-red-500/80' : ''}`}>
-                        {log}
-                      </span>
-                   </div>
-                 </div>
-               );
-             }) : (
-               <div className="text-gray-700 animate-pulse">Establishing uplink to matrix...</div>
-             )}
-           </div>
-        </div>
-
-        {/* FOOTER */}
-        <div className="relative z-10 p-5 bg-black/60 border-t border-white/5 flex items-center justify-between">
-           <div className="flex items-center gap-3">
-              <div className="flex gap-1">
-                 <div className="w-1.5 h-4 bg-[#05FF00]/60" />
-                 <div className="w-1.5 h-4 bg-[#05FF00]/60" />
-                 <div className="w-1.5 h-4 bg-[#05FF00]/60" />
-              </div>
-              <span className="text-xs font-black text-[#05FF00] uppercase tracking-[0.2em]">Live Matrix Stream</span>
-           </div>
-           <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">NODE_DA91_SECURED</span>
-        </div>
-      </div>
-
       <style jsx global>{`
-        @keyframes pulse-flow {
-          0% { transform: translateX(-100%); opacity: 0; }
-          50% { opacity: 1; }
-          100% { transform: translateX(200%); opacity: 0; }
-        }
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }

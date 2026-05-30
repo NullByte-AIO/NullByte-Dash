@@ -172,14 +172,13 @@ export const LiveChatStation = () => {
   const fetchAccounts = async () => {
     const res = await fetch("/api/kick-bot/accounts");
     const data = await res.json();
-    setAccounts(Object.values(data.accounts || {}).filter((a: any) => a.enabled));
+    setAccounts(Object.values(data.accounts || {}).filter((a: any) => a.enabled && a.status === "ACTIVE"));
   };
 
   const getStatusColor = (status: string | undefined) => {
     if (!status) return "bg-gray-500";
     const s = status.toUpperCase();
     if (s === "ACTIVE") return "bg-[#05FF00] shadow-[0_0_8px_#05FF00]";
-    if (s === "UNCHECKED" || s === "NEW") return "bg-yellow-500 shadow-[0_0_8px_#eab308]";
     return "bg-red-500 shadow-[0_0_8px_#ef4444]";
   };
 

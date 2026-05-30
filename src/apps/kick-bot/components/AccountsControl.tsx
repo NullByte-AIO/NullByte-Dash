@@ -14,7 +14,7 @@ interface Account {
   emailPassword?: string;
   discordEmail?: string;
   discordPassword?: string;
-  status: "ACTIVE" | "UNCHECKED" | "INVALID" | string;
+  status: "ACTIVE" | "INVALID" | string;
   enabled: boolean;
 }
 
@@ -25,6 +25,18 @@ export const AccountsControl = () => {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  
+  // Real-time verification states
+  const [tokenInput, setTokenInput] = useState("");
+  const [usernameInput, setUsernameInput] = useState("");
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<{
+    checked: boolean;
+    valid: boolean;
+    username?: string;
+    reason?: string;
+  } | null>(null);
+
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
     message: string;
@@ -36,6 +48,102 @@ export const AccountsControl = () => {
     onConfirm: () => {},
     variant: "info",
   });
+
+  // Reset/Initialize state variables when modal opens/closes
+  useEffect(() => {
+    if (isModalOpen) {
+      setTokenInput(editingAccount?.token || "");
+      setUsernameInput(editingAccount?.username || "");
+      setValidationResult(null);
+      setIsValidating(false);
+    }
+  }, [isModalOpen, editingAccount]);
+
+  const checkTokenValidation = async (token: string) => {
+    if (!token.trim()) {
+      setValidationResult(null);
+      return;
+    }
+    setIsValidating(true);
+    try {
+      const res = await fetch("/api/kick-bot/command", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "get_info",
+          token: token.trim()
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (data.validation) {
+        setValidationResult({
+          checked: true,
+          valid: data.validation.valid,
+          username: data.validation.user?.username,
+          reason: data.validation.reason
+        });
+        if (data.validation.valid && data.validation.user?.username) {
+          setUsernameInput(data.validation.user.username);
+        }
+      } else {
+        setValidationResult({
+          checked: true,
+          valid: false,
+          reason: "Invalid response from server"
+        });
+      }
+    } catch (err: any) {
+      setValidationResult({
+        checked: true,
+        valid: false,
+        reason: err.message || "Failed to contact validation server"
+      });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  // Debounced token checker
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    const trimmedToken = tokenInput.trim();
+    if (!trimmedToken) {
+      setValidationResult(null);
+      return;
+    }
+
+    // Check for duplicate tokens in existing accounts (excluding the one being edited)
+    const duplicateAccount = accounts.find(acc => 
+      acc.token.trim() === trimmedToken && 
+      (!editingAccount || acc.id !== editingAccount.id)
+    );
+
+    if (duplicateAccount) {
+      setValidationResult({
+        checked: true,
+        valid: false,
+        reason: `Duplicate token. Already registered as "${duplicateAccount.username}"`
+      });
+      return;
+    }
+
+    if (editingAccount && trimmedToken === editingAccount.token) {
+      setValidationResult({
+        checked: true,
+        valid: editingAccount.status === "ACTIVE",
+        username: editingAccount.username,
+        reason: editingAccount.status !== "ACTIVE" ? editingAccount.status : undefined
+      });
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(() => {
+      checkTokenValidation(trimmedToken);
+    }, 600);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [tokenInput, isModalOpen, accounts, editingAccount]);
 
   useEffect(() => {
     fetchAccounts();
@@ -104,23 +212,33 @@ export const AccountsControl = () => {
 
   const handleSaveAccount = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validationResult?.valid) return;
+
     const formData = new FormData(e.target as HTMLFormElement);
     const accountData: any = Object.fromEntries(formData.entries());
     
     const shortId = Math.random().toString(36).substr(2, 4).toUpperCase();
     const defaultUsername = `OPERATOR_${shortId}`;
 
+    const finalUsername = usernameInput || accountData.username || defaultUsername;
+    const finalStatus = "ACTIVE";
+
     let updatedAccounts;
     if (editingAccount) {
       updatedAccounts = accounts.map(acc => 
-        acc.id === editingAccount.id ? { ...acc, ...accountData, username: accountData.username || acc.username || defaultUsername } : acc
+        acc.id === editingAccount.id ? { 
+          ...acc, 
+          ...accountData, 
+          username: finalUsername,
+          status: finalStatus
+        } : acc
       );
     } else {
       const newAccount: Account = {
         ...accountData,
-        username: accountData.username || defaultUsername,
-        id: Math.random().toString(36).substr(2, 9),
-        status: "UNCHECKED",
+        username: finalUsername,
+        id: accountData.token.trim(), // Use token as ID
+        status: finalStatus,
         enabled: true
       };
       updatedAccounts = [...accounts, newAccount];
@@ -186,8 +304,7 @@ export const AccountsControl = () => {
   const getStatusConfig = (acc: Account) => {
     if (!acc.enabled) return { label: "DISABLED", color: "text-gray-400", bg: "bg-gray-100 dark:bg-white/5 dark:text-white/20", dot: "bg-gray-400" };
     if (acc.status === "ACTIVE") return { label: "ACTIVE", color: "text-brand-500 dark:text-[#05FF00]", bg: "bg-brand-500/10 dark:bg-[#05FF00]/10", dot: "bg-brand-500 dark:bg-[#05FF00] animate-pulse" };
-    if (acc.status === "UNCHECKED") return { label: "UNCHECKED", color: "text-cyan-500", bg: "bg-cyan-500/10", dot: "bg-cyan-400" };
-    return { label: "INVALID", color: "text-red-500", bg: "bg-red-500/10", dot: "bg-red-500" };
+    return { label: "INACTIVE", color: "text-red-500", bg: "bg-red-500/10", dot: "bg-red-500" };
   };
 
   return (
@@ -262,7 +379,7 @@ export const AccountsControl = () => {
                     <td className="px-6 py-5 text-xs font-mono text-gray-500 dark:text-white/40">{truncate(acc.discordId)}</td>
                     <td className="px-6 py-5 text-xs text-gray-400 max-w-[200px] truncate">{acc.email}</td>
                     <td className="px-6 py-5 text-center">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${statusInfo.bg} ${statusInfo.color}`}>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${statusInfo.bg} ${statusInfo.color}`}>
                         {statusInfo.label}
                       </span>
                     </td>
@@ -328,26 +445,28 @@ export const AccountsControl = () => {
              </div>
              
              <form onSubmit={handleSaveAccount} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto no-scrollbar">
-                <div className="space-y-2">
-                   <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest ml-2">Kick Username</label>
-                   <input 
-                    name="username" 
-                    autoComplete="off"
-                    placeholder="Auto-identifying..." 
-                    defaultValue={editingAccount?.username} 
-                    className="w-full bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-[#05FF00] dark:text-white dark:caret-[#05FF00] transition-all" 
-                   />
-                </div>
-                <div className="space-y-2">
-                   <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest ml-2">Kick Token</label>
-                   <input 
-                    name="token" 
-                    autoComplete="off"
-                    defaultValue={editingAccount?.token} 
-                    required 
-                    className="w-full bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-[#05FF00] dark:text-white dark:caret-[#05FF00] transition-all" 
-                   />
-                </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest ml-2">Kick Username</label>
+                    <input 
+                     name="username" 
+                     autoComplete="off"
+                     placeholder="Auto-identifying..." 
+                     value={usernameInput}
+                     readOnly
+                     className="w-full bg-gray-100 dark:bg-white/5 opacity-70 border border-gray-100 dark:border-white/10 rounded-2xl px-6 py-4 text-sm outline-none cursor-not-allowed dark:text-white transition-all font-bold" 
+                    />
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest ml-2">Kick Token</label>
+                    <input 
+                     name="token" 
+                     autoComplete="off"
+                     value={tokenInput}
+                     onChange={(e) => setTokenInput(e.target.value)}
+                     required 
+                     className="w-full bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-[#05FF00] dark:text-white dark:caret-[#05FF00] transition-all" 
+                    />
+                 </div>
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest ml-2">Rainbet ID</label>
                    <input 
@@ -403,12 +522,58 @@ export const AccountsControl = () => {
                          </div>
                       </div>
                    </div>
-                </div>
+                 </div>
+                 {/* Turnstile Security Widget (Permanent) */}
+                 <div className="md:col-span-2 mt-2">
+                   <div className="p-4 rounded-2xl border border-gray-200 dark:border-white/15 bg-gray-100/50 dark:bg-black/60 flex items-center justify-between shadow-inner w-full">
+                     <div className="flex items-center gap-3">
+                       <div className="relative flex items-center justify-center w-8 h-8 shrink-0">
+                         {!tokenInput.trim() ? (
+                           <div className="w-6 h-6 rounded-full bg-gray-500/10 flex items-center justify-center text-gray-400 border border-gray-500/20">
+                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                           </div>
+                         ) : isValidating ? (
+                           <div className="w-5 h-5 rounded-full border-2 border-brand-500 dark:border-[#05FF00]/30 border-t-[#05FF00] animate-spin" />
+                         ) : validationResult?.valid ? (
+                           <div className="w-6 h-6 rounded-full bg-[#05FF00]/10 flex items-center justify-center text-[#05FF00] border border-[#05FF00]/25">
+                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
+                           </div>
+                         ) : (
+                           <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 border border-red-500/25">
+                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                           </div>
+                         )}
+                       </div>
+                       
+                       <div className="flex flex-col">
+                         <span className="text-[10px] font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.2em]">Turnstile Link</span>
+                         <span className={`text-[12px] font-bold ${!tokenInput.trim() ? 'text-gray-400 dark:text-white/30' : isValidating ? 'text-cyan-400/80 animate-pulse' : (validationResult?.valid ? 'text-gray-900 dark:text-[#05FF00]' : 'text-red-500')}`}>
+                           {!tokenInput.trim() 
+                             ? 'Awaiting token input...' 
+                             : isValidating 
+                               ? 'Verifying...' 
+                               : validationResult?.valid 
+                                 ? `Verified: ${validationResult.username}` 
+                                 : `Failed: ${validationResult?.reason || 'UNAUTHORIZED'}`}
+                         </span>
+                       </div>
+                     </div>
+                     
+                     <div className="text-right shrink-0">
+                       <span className="text-[9px] font-bold text-gray-400 dark:text-white/30 uppercase tracking-widest block">Secure</span>
+                       <span className="text-[8px] text-gray-500 dark:text-white/20 font-mono">v1.1.0</span>
+                     </div>
+                   </div>
+                 </div>
 
                 <div className="md:col-span-2 flex justify-end gap-4 pt-8 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/5 -mx-8 -mb-8 px-8 py-8">
                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white transition-all">Cancel</button>
-                   <button type="submit" className="px-12 py-4 rounded-2xl bg-brand-500 text-white dark:bg-[#05FF00] dark:text-black text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all">
-                      {editingAccount ? 'Update Identity' : 'Deploy Account'}
+                   <button 
+                     type="submit" 
+                     disabled={isValidating || !validationResult?.valid}
+                     className="px-12 py-4 rounded-2xl bg-brand-500 text-white dark:bg-[#05FF00] dark:text-black text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                      {isValidating ? 'Validating...' : (editingAccount ? 'Update Identity' : 'Deploy Account')}
                    </button>
                 </div>
              </form>
