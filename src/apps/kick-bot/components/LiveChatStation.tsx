@@ -28,7 +28,7 @@ interface ChatLibraries {
 
 export const LiveChatStation = () => {
   const { data: accountsResponse } = useSWR("/api/kick-bot/accounts", fetcher);
-  const accounts: any[] = accountsResponse ? Object.values(accountsResponse || {}).filter((a: any) => a.enabled) : [];
+  const accounts: any[] = accountsResponse ? Object.values(accountsResponse.accounts || {}).filter((a: any) => a.enabled && a.status === "ACTIVE") : [];
   
   const { data: chatLibraries = {} } = useSWR("/api/kick-bot/chat-libraries", fetcher);
   const { data: emojis = [] } = useSWR("/api/kick-bot/emojis", fetcher);
