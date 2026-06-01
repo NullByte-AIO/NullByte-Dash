@@ -44,23 +44,3 @@ export async function safeFetch(path: string, options: RequestInit = {}): Promis
     throw err;
   }
 }
-
-/**
- * Log an action through the backend API (appends to daily log file on the backend).
- */
-export async function logAction(category: string, message: string, level: string = "INFO") {
-  try {
-    // Post a log entry as a command that the backend picks up
-    await safeFetch("/api/command", {
-      method: "POST",
-      body: JSON.stringify({
-        action: "log",
-        category,
-        message,
-        level,
-      }),
-    });
-  } catch (err) {
-    console.error(`Failed to send log to backend: ${err}`);
-  }
-}

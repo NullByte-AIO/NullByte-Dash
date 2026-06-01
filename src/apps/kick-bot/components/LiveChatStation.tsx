@@ -16,6 +16,8 @@ interface Message {
     user: string;
     content: string;
   };
+  error?: boolean;
+  isPending?: boolean;
 }
 
 interface ChatLibraries {
@@ -121,11 +123,12 @@ export const LiveChatStation = () => {
       setMessages(prev => {
         if (prev.some(m => m.id === incomingMsg.id)) return prev;
 
-        // Check if this incoming message matches a recent outgoing message we sent
+        // Check if this incoming message matches a recent outgoing message we sent that is still pending
         const recentOutgoingIdx = prev.findIndex(m => 
           m.type === 'outgoing' && 
           m.user === incomingMsg.user && 
-          m.content === incomingMsg.content
+          m.content === incomingMsg.content &&
+          m.isPending === true
         );
 
         if (recentOutgoingIdx !== -1) {
@@ -134,7 +137,8 @@ export const LiveChatStation = () => {
           newArr[recentOutgoingIdx] = {
             ...newArr[recentOutgoingIdx],
             id: incomingMsg.id,
-            sender_id: incomingMsg.sender_id
+            sender_id: incomingMsg.sender_id,
+            isPending: false
           };
           return newArr;
         }
@@ -227,7 +231,8 @@ export const LiveChatStation = () => {
       content: content,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'outgoing',
-      replyTo: replyingTo ? { user: replyingTo.user, content: replyingTo.content } : undefined
+      replyTo: replyingTo ? { user: replyingTo.user, content: replyingTo.content } : undefined,
+      isPending: true
     };
     
     setMessages(prev => [...prev.slice(-99), newMsg]);
@@ -270,7 +275,7 @@ export const LiveChatStation = () => {
 
       if (response.ok) {
         const result = await response.json();
-        if (result.success && result.id) {
+        if (result.success !== false && result.id) {
           setMessages(prev => {
             const idx = prev.findIndex(m => m.id === newMsg.id);
             if (idx !== -1) {
@@ -278,16 +283,45 @@ export const LiveChatStation = () => {
               newArr[idx] = {
                 ...newArr[idx],
                 id: result.id,
-                sender_id: result.sender_id
+                sender_id: result.sender_id,
+                isPending: false
               };
               return newArr;
             }
             return prev;
           });
+        } else {
+          setMessages(prev => {
+            const idx = prev.findIndex(m => m.id === newMsg.id);
+            if (idx !== -1) {
+              const newArr = [...prev];
+              newArr[idx] = { ...newArr[idx], error: true, isPending: false };
+              return newArr;
+            }
+            return prev;
+          });
         }
+      } else {
+        setMessages(prev => {
+          const idx = prev.findIndex(m => m.id === newMsg.id);
+          if (idx !== -1) {
+            const newArr = [...prev];
+            newArr[idx] = { ...newArr[idx], error: true, isPending: false };
+            return newArr;
+          }
+          return prev;
+        });
       }
     } catch (error) {
-      console.error("Failed to send message", error);
+      setMessages(prev => {
+        const idx = prev.findIndex(m => m.id === newMsg.id);
+        if (idx !== -1) {
+          const newArr = [...prev];
+          newArr[idx] = { ...newArr[idx], error: true, isPending: false };
+          return newArr;
+        }
+        return prev;
+      });
     }
   };
 
@@ -298,6 +332,42 @@ export const LiveChatStation = () => {
 
   const [isEmojiMenuOpen, setIsEmojiMenuOpen] = useState(true);
   const [isEmojiMenuLocked, setIsEmojiMenuLocked] = useState(false);
+
+  // Renders a message content string, replacing [emote:ID:NAME] with inline emoji images
+  const renderMessageContent = (content: string) => {
+    const emoteRegex = /\[emote:(\d+):([^\]]+)\]/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+    let key = 0;
+    while ((match = emoteRegex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(<span key={key++}>{content.slice(lastIndex, match.index)}</span>);
+      }
+      const emoteId = match[1];
+      const emoteName = match[2];
+      const found = emojiList.find(e => e.name === emoteName);
+      // Priority 1: our local image. Priority 2: Kick CDN by emote ID
+      const src = found?.image
+        ? `/images/emojis/${found.image}`
+        : `https://files.kick.com/emotes/${emoteId}/fullsize`;
+      parts.push(
+        <img
+          key={key++}
+          src={src}
+          alt={emoteName}
+          title={emoteName}
+          className="inline-block w-5 h-5 object-contain align-middle mx-0.5"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      );
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < content.length) {
+      parts.push(<span key={key++}>{content.slice(lastIndex)}</span>);
+    }
+    return parts.length > 0 ? parts : content;
+  };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-auto xl:h-[calc(100vh-200px)]">
@@ -384,8 +454,8 @@ export const LiveChatStation = () => {
           }}
           className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 no-scrollbar bg-white dark:bg-transparent"
         >
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex flex-col group/msg ${msg.type === 'outgoing' ? 'items-end' : 'items-start'}`}>
+          {messages.map((msg, index) => (
+            <div key={msg.id + '-' + index} className={`flex flex-col group/msg ${msg.type === 'outgoing' ? 'items-end' : 'items-start'}`}>
               <div className="flex items-center gap-2 mb-1.5 px-1">
                 <span className={`text-[11px] font-bold ${msg.type === 'outgoing' ? 'text-brand-500 dark:text-[#05FF00]' : 'text-gray-400'}`}>
                   {msg.user}
@@ -396,13 +466,20 @@ export const LiveChatStation = () => {
               {msg.replyTo && (
                 <div className={`mb-1 px-3 py-1.5 rounded-xl bg-white/5 border-l-2 border-[#05FF00]/40 max-w-[85%] md:max-w-[70%] flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-1 duration-300`}>
                   <span className="text-[9px] font-black text-[#05FF00] uppercase tracking-widest opacity-60">Replied to {msg.replyTo.user}</span>
-                  <span className="text-[10px] text-white/30 truncate">{msg.replyTo.content}</span>
+                  <span className="text-[10px] text-white/30 truncate">{renderMessageContent(msg.replyTo.content)}</span>
                 </div>
               )}
 
                 <div className="relative flex items-center gap-2 group/bubble">
-                  <div className={`px-4 md:px-5 py-2.5 rounded-2xl text-[13px] md:text-[14px] max-w-[90%] md:max-w-[85%] shadow-sm ${msg.type === 'outgoing' ? 'bg-brand-500 text-white dark:bg-[#05FF00] dark:text-black font-bold' : 'bg-gray-50 dark:bg-white/5 text-gray-700 dark:text-white/80'}`}>
-                    {msg.content}
+                  {msg.error && (
+                    <TacticalTooltip title="Transmission Failed" description="Rate limited or network error.">
+                      <div className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center shrink-0 border border-red-500/40">
+                        <svg className="w-3 h-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                      </div>
+                    </TacticalTooltip>
+                  )}
+                  <div className={`px-4 md:px-5 py-2.5 rounded-2xl text-[13px] md:text-[14px] max-w-[90%] md:max-w-[85%] shadow-sm ${msg.error ? 'bg-red-500/10 border border-red-500/30 text-red-400' : msg.type === 'outgoing' ? 'bg-brand-500 text-white dark:bg-[#05FF00] dark:text-black font-bold' : 'bg-gray-50 dark:bg-white/5 text-gray-700 dark:text-white/80'}`}>
+                    {renderMessageContent(msg.content)}
                   </div>
                   
                   {msg.user !== accounts[activePersonaIndex]?.username && (
@@ -527,27 +604,33 @@ export const LiveChatStation = () => {
                    </div>
                 </div>
                 
-                <div className="grid grid-cols-4 gap-3 overflow-y-auto custom-scrollbar pr-1 flex-1">
-                   {filteredEmojis.map((emoji) => (
-                     <button
-                      key={emoji.name}
+                <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 overflow-y-auto custom-scrollbar pr-1 flex-1">
+                   {filteredEmojis.map((emoji, index) => (
+                      <button
+                      key={emoji.name + '-' + index}
                       onClick={() => {
                         handleSendMessage(emoji.code);
                         if (!isEmojiMenuLocked) setIsEmojiMenuOpen(false);
                       }}
-                      className="group relative aspect-square bg-gray-50 dark:bg-black/40 rounded-xl border border-gray-100 dark:border-white/10 flex items-center justify-center hover:border-[#05FF00] hover:bg-[#05FF00]/10 transition-all overflow-hidden"
+                      className="group relative h-10 w-full flex items-center justify-center rounded-lg hover:bg-white/5 transition-all overflow-hidden shrink-0"
                       title={emoji.name}
                      >
                         {emoji.image ? (
                           <img 
                            src={`/images/emojis/${emoji.image}`} 
                            alt={emoji.name} 
-                           className="w-7 h-7 object-contain group-hover:scale-125 transition-transform duration-300" 
+                           className="w-7 h-7 object-contain group-hover:scale-110 transition-transform duration-300" 
                            loading="lazy"
                            onError={(e) => (e.currentTarget.src = "/favicon.ico")}
                           />
                         ) : (
-                          <span className="text-xs font-mono text-white/40">{emoji.name.slice(0, 2)}</span>
+                          <img 
+                           src={`https://files.kick.com/emotes/${emoji.code?.match(/\[emote:(\d+):/)?.[1] || ''}/fullsize`}
+                           alt={emoji.name} 
+                           className="w-7 h-7 object-contain group-hover:scale-110 transition-transform duration-300" 
+                           loading="lazy"
+                           onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
                         )}
                        <div className="absolute inset-0 bg-[#05FF00]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                      </button>
@@ -568,37 +651,40 @@ export const LiveChatStation = () => {
             <h3 className="text-sm font-black text-white/40 uppercase tracking-[0.4em] ml-4 mb-6">Tactical Libraries</h3>
             
             <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1">
-              {Object.entries(chatLibraries).map(([name, msgs]) => (
-                <div key={name} className="relative">
-                  <button
-                    onClick={() => setOpenLibrary(openLibrary === name ? null : name)}
-                    className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between group
-                      ${openLibrary === name 
-                        ? 'bg-[#05FF00] border-[#05FF00] text-black shadow-[0_0_20px_rgba(5,255,0,0.2)]' 
-                        : 'bg-white dark:bg-white/5 border-gray-100 dark:border-white/5 text-gray-500 dark:text-white/40 hover:border-[#05FF00]/50'}
-                    `}
-                  >
-                    <span className="text-[11px] font-black uppercase tracking-widest">{name}</span>
-                    <ChevronDownIcon className={`w-4 h-4 transition-transform ${openLibrary === name ? 'rotate-180' : ''}`} />
-                  </button>
+              {Object.entries(chatLibraries).map(([name, msgs]) => {
+                if (!Array.isArray(msgs)) return null;
+                return (
+                  <div key={name} className="relative">
+                    <button
+                      onClick={() => setOpenLibrary(openLibrary === name ? null : name)}
+                      className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between group
+                        ${openLibrary === name 
+                          ? 'bg-[#05FF00] border-[#05FF00] text-black shadow-[0_0_20px_rgba(5,255,0,0.2)]' 
+                          : 'bg-white dark:bg-white/5 border-gray-100 dark:border-white/5 text-gray-500 dark:text-white/40 hover:border-[#05FF00]/50'}
+                      `}
+                    >
+                      <span className="text-[11px] font-black uppercase tracking-widest">{name}</span>
+                      <ChevronDownIcon className={`w-4 h-4 transition-transform ${openLibrary === name ? 'rotate-180' : ''}`} />
+                    </button>
 
-                  {openLibrary === name && (
-                    <div className="mt-2 bg-[#0F0F10] border border-white/10 rounded-xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 z-50 no-scrollbar">
-                      <div className="max-h-[300px] overflow-y-auto no-scrollbar">
-                        {msgs.map((m, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleSendMessage(m)}
-                            className="w-full px-4 py-3 text-left text-[11px] font-bold text-white/60 hover:bg-[#05FF00] hover:text-black transition-all border-b border-white/[0.03] last:border-0 uppercase tracking-wide"
-                          >
-                            {m}
-                          </button>
-                        ))}
+                    {openLibrary === name && (
+                      <div className="mt-2 bg-[#0F0F10] border border-white/10 rounded-xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 z-50 no-scrollbar">
+                        <div className="max-h-[300px] overflow-y-auto no-scrollbar">
+                          {msgs.map((m, i) => (
+                            <button
+                              key={i}
+                              onClick={() => handleSendMessage(m)}
+                              className="w-full px-4 py-3 text-left text-[11px] font-bold text-white/60 hover:bg-[#05FF00] hover:text-black transition-all border-b border-white/[0.03] last:border-0 uppercase tracking-wide"
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
          </div>
 

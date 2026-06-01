@@ -8,6 +8,7 @@ import { TacticalTooltip } from "@/components/ui/TacticalTooltip";
 export const AutomationDashboard = () => {
   const [config, setConfig] = useState<any>(null);
   const [chatLibraries, setChatLibraries] = useState<Record<string, string[]>>({});
+  const [emojiCategories, setEmojiCategories] = useState<Record<string, string[]>>({});
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
     message: string;
@@ -25,65 +26,10 @@ export const AutomationDashboard = () => {
   useEffect(() => {
     fetchConfig();
     fetchChatLibraries();
+    fetchEmojiCategories();
   }, []);
 
-  // SAFETY & COMPLIANCE MONITOR
-  useEffect(() => {
-    let monitorInterval: NodeJS.Timeout;
-    
-    if (config?.autopilot?.enabled || config?.customAutopilot?.enabled) {
-      monitorInterval = setInterval(async () => {
-        const now = Date.now();
-        const protocols = config.autopilotProtocols || { requireConfirmation: true, confirmationInterval: 10, stopOnStreamEnd: true };
-        
-        // 1. Check Confirmation Cycle
-        if (protocols.requireConfirmation) {
-          const elapsedMin = (now - lastConfirmationTime) / (1000 * 60);
-          if (elapsedMin >= (protocols.confirmationInterval || 10)) {
-             setConfirmConfig({
-               isOpen: true,
-               message: "SAFETY PROTOCOL: The autopilot sequence has reached its temporal gate. Confirm to CONTINUE automated operations.",
-               onConfirm: () => {
-                 setLastConfirmationTime(Date.now());
-               }
-             });
-             
-             // Pause operations by disabling (or just waiting for confirm)
-             // The user said "confirmation to continue", so if they don't confirm, it should probably stop or pause.
-             // I'll stop it to be safe.
-             handleStopAll();
-             return;
-          }
-        }
-
-        // 2. Check Stream Status
-        if (protocols.stopOnStreamEnd) {
-           try {
-             const streamerLink = `https://kick.com/${config.streamerName}`;
-             const res = await fetch("/api/kick-bot/fetch-streamer", {
-               method: "POST",
-               body: JSON.stringify({ streamerLink }),
-               headers: { "Content-Type": "application/json" },
-             });
-             const data = await res.json();
-             // We'd need the API to return stream status. Let's assume for now if it returns data it's okay, 
-             // but usually we'd check `is_live` from Kick API.
-             // I'll update the API route to include is_live.
-             if (data.isOffline) {
-                handleStopAll();
-                setConfirmConfig({
-                  isOpen: true,
-                  message: "MISSION TERMINATED: Stream uplink lost. Autopilot has been grounded per tactical protocols.",
-                  onConfirm: () => {}
-                });
-             }
-           } catch (e) {}
-        }
-      }, 60000); // Check every minute
-    }
-
-    return () => clearInterval(monitorInterval);
-  }, [config, lastConfirmationTime]);
+  // SAFETY & COMPLIANCE MONITOR has been disabled to prevent offline auto-stops.
 
   const fetchConfig = async () => {
     const res = await fetch("/api/kick-bot/config");
@@ -93,8 +39,7 @@ export const AutomationDashboard = () => {
 
   const handleStopAll = () => {
     updateConfig({ 
-      autopilot: { ...config.autopilot, enabled: false },
-      customAutopilot: { ...(config.customAutopilot || {}), enabled: false }
+      autopilot: { ...config.autopilot, enabled: false }
     });
   };
 
@@ -103,6 +48,14 @@ export const AutomationDashboard = () => {
       const res = await fetch("/api/kick-bot/chat-libraries");
       const data = await res.json();
       setChatLibraries(data);
+    } catch (e) {}
+  };
+
+  const fetchEmojiCategories = async () => {
+    try {
+      const res = await fetch("/api/kick-bot/emoji-categories");
+      const data = await res.json();
+      setEmojiCategories(data);
     } catch (e) {}
   };
 
@@ -116,57 +69,20 @@ export const AutomationDashboard = () => {
     });
   };
 
-  const toggleAutopilot = async (type: 'standard' | 'custom') => {
-    const isStandard = type === 'standard';
-    const currentStatus = isStandard ? config.autopilot.enabled : (config.customAutopilot?.enabled || false);
+  const toggleAutopilot = async () => {
+    const currentStatus = config.autopilot.enabled;
     
     if (!currentStatus) {
-      // Check Stream Status first
-      setIsExtracting(true);
-      let isOffline = false;
-      try {
-        const streamerLink = `https://kick.com/${config.streamerName}`;
-        const res = await fetch("/api/kick-bot/fetch-streamer", {
-          method: "POST",
-          body: JSON.stringify({ streamerLink }),
-          headers: { "Content-Type": "application/json" },
-        });
-        const data = await res.json();
-        isOffline = data.isOffline;
-      } catch (e) {}
-      setIsExtracting(false);
-
-      const startSequence = () => {
-        setConfirmConfig({
-          isOpen: true,
-          message: `Are you sure you want to INITIATE the ${type} autopilot sequence? This will begin automated command dispatch based on your current tactical parameters.`,
-          onConfirm: () => {
-            setLastConfirmationTime(Date.now());
-            if (isStandard) {
-              updateConfig({ autopilot: { ...config.autopilot, enabled: true } });
-            } else {
-              updateConfig({ customAutopilot: { ...(config.customAutopilot || {}), enabled: true } });
-            }
-          }
-        });
-      };
-
-      if (isOffline) {
-        setConfirmConfig({
-          isOpen: true,
-          message: "CRITICAL WARNING: The target stream is currently OFFLINE. Deploying autopilot in this state may lead to redundant operations. Are you ABSOLUTELY sure you want to proceed with the second-stage initiation?",
-          onConfirm: startSequence
-        });
-      } else {
-        startSequence();
-      }
-      return;
-    }
-
-    if (isStandard) {
-      updateConfig({ autopilot: { ...config.autopilot, enabled: !config.autopilot.enabled } });
+      setConfirmConfig({
+        isOpen: true,
+        message: `Are you sure you want to INITIATE the autopilot sequence? This will begin automated command dispatch based on your current tactical parameters.`,
+        onConfirm: () => {
+          setLastConfirmationTime(Date.now());
+          updateConfig({ autopilot: { ...config.autopilot, enabled: true } });
+        }
+      });
     } else {
-      updateConfig({ customAutopilot: { ...(config.customAutopilot || {}), enabled: !(config.customAutopilot?.enabled || false) } });
+      updateConfig({ autopilot: { ...config.autopilot, enabled: false } });
     }
   };
 
@@ -178,8 +94,7 @@ export const AutomationDashboard = () => {
 
   return (
     <div className="space-y-8 pb-20">
-      {/* Standard Autopilot */}
-      <GlassCard title="Strategic Autopilot (Main)">
+      <GlassCard title="Autopilot Cluster">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 sm:gap-0 p-8 rounded-[32px] bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 relative overflow-hidden group">
@@ -194,7 +109,7 @@ export const AutomationDashboard = () => {
                 description={config.autopilot.enabled ? "Immediately cease all automated operations and return units to standby." : "Deploy the primary autopilot protocol based on current tactical parameters."}
               >
                 <button
-                  onClick={() => toggleAutopilot('standard')}
+                  onClick={toggleAutopilot}
                   className={`relative z-10 px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all
                     ${config.autopilot.enabled 
                       ? 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]' 
@@ -209,13 +124,84 @@ export const AutomationDashboard = () => {
               </div>
             </div>
 
+            {/* PAYLOAD MODE SELECTOR */}
+            <div className="space-y-6 bg-white dark:bg-white/5 p-8 rounded-[32px] border border-gray-100 dark:border-white/10">
+               <div className="flex flex-col gap-4">
+                  <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest">Payload Protocol (Select Target Source)</label>
+                  
+                  <div className="relative group">
+                     <ListIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-[#05FF00]" />
+                     <select 
+                       value={
+                         config.autopilot.mode === 'static' ? 'static' :
+                         config.autopilot.mode === 'category' ? `text_cat_${config.autopilot.category || ''}` :
+                         config.autopilot.mode === 'emoji' && config.autopilot.emojiCategory ? `emoji_cat_${config.autopilot.emojiCategory}` :
+                         'emoji_global'
+                       }
+                       onChange={(e) => {
+                         const val = e.target.value;
+                         if (val === 'static') {
+                           updateConfig({ autopilot: { ...config.autopilot, mode: 'static' } });
+                         } else if (val === 'emoji_global') {
+                           updateConfig({ autopilot: { ...config.autopilot, mode: 'emoji', emojiCategory: '' } });
+                         } else if (val.startsWith('emoji_cat_')) {
+                           updateConfig({ autopilot: { ...config.autopilot, mode: 'emoji', emojiCategory: val.replace('emoji_cat_', '') } });
+                         } else if (val.startsWith('text_cat_')) {
+                           updateConfig({ autopilot: { ...config.autopilot, mode: 'category', category: val.replace('text_cat_', '') } });
+                         }
+                       }}
+                       className="w-full bg-black/40 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-sm font-bold text-white outline-none focus:border-[#05FF00] appearance-none"
+                     >
+                        <optgroup label="Emoji Matrices">
+                          <option value="emoji_global">🎭 All Enabled Emojis (Global)</option>
+                          {Object.keys(emojiCategories).filter(catId => Array.isArray(emojiCategories[catId])).map(catId => (
+                            <option key={`emoji_cat_${catId}`} value={`emoji_cat_${catId}`}>🎭 {catId} ({emojiCategories[catId].length} emojis)</option>
+                          ))}
+                        </optgroup>
+                        
+                        <optgroup label="Message Libraries">
+                          <option value="text_cat_" disabled>Select a Message Library...</option>
+                          {Object.keys(chatLibraries).filter(cat => Array.isArray(chatLibraries[cat])).map(cat => (
+                            <option key={`text_cat_${cat}`} value={`text_cat_${cat}`}>📝 {cat} ({chatLibraries[cat].length} phrases)</option>
+                          ))}
+                        </optgroup>
+
+                        <optgroup label="Custom Static Protocol">
+                          <option value="static">⚡ Custom Static String</option>
+                        </optgroup>
+                     </select>
+                  </div>
+
+                  {config.autopilot.mode === 'static' && (
+                    <div className="relative group mt-2">
+                       <ShootingStarIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-[#05FF00]" />
+                       <input
+                         type="text"
+                         value={config.autopilot.customMessage || ""}
+                         onChange={(e) => updateConfig({ autopilot: { ...config.autopilot, customMessage: e.target.value } })}
+                         className="w-full bg-black/40 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-sm font-bold text-white outline-none focus:border-[#05FF00] transition-all"
+                         placeholder="Static tactical string..."
+                       />
+                    </div>
+                  )}
+
+                  <p className="text-[9px] font-medium text-white/20 italic ml-2">
+                    {config.autopilot.mode === 'static' 
+                      ? "The bot will deploy this exact static string for every dispatch." 
+                      : "The bot will randomly select payloads from the chosen source for each cycle."}
+                  </p>
+               </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
                <div className="p-6 rounded-3xl bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/5">
                   <span className="text-[9px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest block mb-2">Cycle Limit</span>
                   <input 
                     type="number" 
-                    value={config.autopilot.totalCircles}
-                    onChange={(e) => updateConfig({ autopilot: { ...config.autopilot, totalCircles: parseInt(e.target.value) } })}
+                    value={config.autopilot.totalCircles || 0}
+                    onChange={(e) => updateConfig({ autopilot: { ...config.autopilot, totalCircles: parseInt(e.target.value) || 0 } })}
                     className="bg-transparent text-xl font-black text-brand-500 dark:text-[#05FF00] w-full outline-none"
                   />
                </div>
@@ -231,155 +217,38 @@ export const AutomationDashboard = () => {
                   </button>
                </div>
             </div>
-          </div>
 
-          <div className="space-y-6">
             <div className="flex flex-col gap-4">
-              <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest ml-4">Inter-Message Latency (ms)</label>
+              <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest ml-4">Inter-Message Latency (Seconds)</label>
               <div className="flex items-center gap-4 bg-white dark:bg-black/40 p-2 rounded-2xl border border-gray-100 dark:border-white/10">
                 <input
                   type="number"
-                  value={config.autopilot.minDelay}
-                  onChange={(e) => updateConfig({ autopilot: { ...config.autopilot, minDelay: parseInt(e.target.value) } })}
+                  step="0.1"
+                  value={(config.autopilot.minDelay || 0) / 1000}
+                  onChange={(e) => updateConfig({ autopilot: { ...config.autopilot, minDelay: (parseFloat(e.target.value) || 0) * 1000 } })}
                   className="flex-1 bg-transparent px-4 py-3 text-sm font-black text-brand-500 dark:text-[#05FF00] outline-none text-center"
                 />
                 <div className="w-px h-8 bg-white/10" />
                 <input
                   type="number"
-                  value={config.autopilot.maxDelay}
-                  onChange={(e) => updateConfig({ autopilot: { ...config.autopilot, maxDelay: parseInt(e.target.value) } })}
+                  step="0.1"
+                  value={(config.autopilot.maxDelay || 0) / 1000}
+                  onChange={(e) => updateConfig({ autopilot: { ...config.autopilot, maxDelay: (parseFloat(e.target.value) || 0) * 1000 } })}
                   className="flex-1 bg-transparent px-4 py-3 text-sm font-black text-brand-500 dark:text-[#05FF00] outline-none text-center"
                 />
               </div>
             </div>
+            
             <div className="p-6 rounded-3xl bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/5">
-                <span className="text-[9px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest block mb-2">Circle Cooldown (ms)</span>
+                <span className="text-[9px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest block mb-2">Circle Cooldown (Seconds)</span>
                 <input 
-                  type="number" 
-                  value={config.autopilot.circleDelay}
-                  onChange={(e) => updateConfig({ autopilot: { ...config.autopilot, circleDelay: parseInt(e.target.value) } })}
+                  type="number"
+                  step="0.1"
+                  value={(config.autopilot.circleDelay || 0) / 1000}
+                  onChange={(e) => updateConfig({ autopilot: { ...config.autopilot, circleDelay: (parseFloat(e.target.value) || 0) * 1000 } })}
                   className="bg-transparent text-sm font-bold dark:text-white w-full outline-none"
                 />
             </div>
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Custom Message Autopilot */}
-      <GlassCard title="Tactical Payload Autopilot">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 sm:gap-0 p-8 rounded-[32px] bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-white/5 relative overflow-hidden group">
-              <div className="flex flex-col gap-1 relative z-10">
-                <span className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em]">Deployment Status</span>
-                <span className={`text-2xl font-black uppercase tracking-tighter ${config.customAutopilot?.enabled ? 'text-cyan-500' : 'text-red-500'}`}>
-                  {config.customAutopilot?.enabled ? "In_Flight" : "Grounded"}
-                </span>
-              </div>
-              <TacticalTooltip 
-                title={config.customAutopilot?.enabled ? "Abort Launch" : "Launch Payload"}
-                description={config.customAutopilot?.enabled ? "Kill the current custom payload sequence and ground all units." : "Initialize the custom message/category deployment protocol."}
-              >
-                <button
-                  onClick={() => toggleAutopilot('custom')}
-                  className={`relative z-10 px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all
-                    ${config.customAutopilot?.enabled ? 'bg-red-500 text-white' : 'bg-cyan-500 text-white shadow-[0_0_20px_rgba(6,182,212,0.3)]'}
-                  `}
-                >
-                  {config.customAutopilot?.enabled ? "Abort" : "Launch"}
-                </button>
-              </TacticalTooltip>
-            </div>
-            
-            {/* PAYLOAD MODE SELECTOR */}
-            <div className="space-y-6 bg-white dark:bg-white/5 p-8 rounded-[32px] border border-gray-100 dark:border-white/10">
-               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-2">
-                  <label className="text-[10px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest">Payload Protocol</label>
-                  <div className="flex items-center gap-4">
-                     <button 
-                       onClick={() => updateConfig({ customAutopilot: { ...config.customAutopilot, mode: 'static' } })}
-                       className={`text-[9px] font-black uppercase tracking-widest ${config.customAutopilot?.mode !== 'category' ? 'text-cyan-500' : 'text-white/20'}`}
-                     >
-                       Static_String
-                     </button>
-                     <button 
-                       onClick={() => updateConfig({ customAutopilot: { ...config.customAutopilot, mode: 'category' } })}
-                       className={`text-[9px] font-black uppercase tracking-widest ${config.customAutopilot?.mode === 'category' ? 'text-[#05FF00]' : 'text-white/20'}`}
-                     >
-                       Matrix_Category
-                     </button>
-                  </div>
-               </div>
-
-               {config.customAutopilot?.mode === 'category' ? (
-                 <div className="space-y-4">
-                    <div className="relative group">
-                       <ListIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-[#05FF00]" />
-                       <select 
-                         value={config.customAutopilot?.category || ""}
-                         onChange={(e) => updateConfig({ customAutopilot: { ...config.customAutopilot, category: e.target.value } })}
-                         className="w-full bg-black/40 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-sm font-bold text-white outline-none focus:border-[#05FF00] appearance-none"
-                       >
-                          <option value="">Select Category Matrix...</option>
-                          {Object.keys(chatLibraries).map(cat => (
-                            <option key={cat} value={cat}>{cat} ({chatLibraries[cat].length} phrases)</option>
-                          ))}
-                       </select>
-                    </div>
-                    <p className="text-[9px] font-medium text-white/20 italic ml-2">The bot will randomly select payloads from the chosen category for each cycle.</p>
-                 </div>
-               ) : (
-                 <div className="relative group">
-                    <ShootingStarIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-cyan-500" />
-                    <input
-                      type="text"
-                      value={config.customAutopilot?.customMessage || ""}
-                      onChange={(e) => updateConfig({ customAutopilot: { ...config.customAutopilot, customMessage: e.target.value } })}
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-sm font-bold text-white outline-none focus:border-cyan-500 transition-all"
-                      placeholder="Static tactical string..."
-                    />
-                 </div>
-               )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-             <div className="p-6 rounded-[32px] bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/5">
-                <span className="text-[9px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest block mb-2">Cycle Count</span>
-                <input 
-                  type="number" 
-                  value={config.customAutopilot?.totalCircles || 0}
-                  onChange={(e) => updateConfig({ customAutopilot: { ...config.customAutopilot, totalCircles: parseInt(e.target.value) } })}
-                  className="bg-transparent text-sm font-black dark:text-white w-full outline-none"
-                />
-             </div>
-             <div className="p-6 rounded-[32px] bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/5">
-                <span className="text-[9px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest block mb-2">Rest Period</span>
-                <input 
-                  type="number" 
-                  value={config.customAutopilot?.circleDelay || 0}
-                  onChange={(e) => updateConfig({ customAutopilot: { ...config.customAutopilot, circleDelay: parseInt(e.target.value) } })}
-                  className="bg-transparent text-sm font-black dark:text-white w-full outline-none"
-                />
-             </div>
-             <div className="p-6 rounded-[32px] bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/5 col-span-2 space-y-4">
-                <label className="text-[9px] font-black text-gray-400 dark:text-white/20 uppercase tracking-widest block">Deployment Latency (ms)</label>
-                <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/5">
-                  <input
-                    type="number"
-                    value={config.customAutopilot?.minDelay || 0}
-                    onChange={(e) => updateConfig({ customAutopilot: { ...config.customAutopilot, minDelay: parseInt(e.target.value) } })}
-                    className="flex-1 bg-transparent px-3 py-2 text-xs font-mono dark:text-white text-center outline-none"
-                  />
-                  <div className="w-px h-6 bg-white/5" />
-                  <input
-                    type="number"
-                    value={config.customAutopilot?.maxDelay || 0}
-                    onChange={(e) => updateConfig({ customAutopilot: { ...config.customAutopilot, maxDelay: parseInt(e.target.value) } })}
-                    className="flex-1 bg-transparent px-3 py-2 text-xs font-mono dark:text-white text-center outline-none"
-                  />
-                </div>
-             </div>
           </div>
         </div>
       </GlassCard>
