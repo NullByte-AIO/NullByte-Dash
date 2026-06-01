@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import { GlassCard } from "../../../components/ui/GlassCard";
 
 interface LogEntry {
@@ -10,49 +12,33 @@ interface LogEntry {
 }
 
 export const SystemLogs = () => {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
-  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const categories = ["ALL", "SYSTEM", "ACCOUNTS", "CHAT", "AUTOMATION", "SECURITY"];
 
+  const { data: availableDates = [] } = useSWR("/api/kick-bot/logs?listDates=true", fetcher);
+  
+  // Set initial selected date to today if available
   useEffect(() => {
-    fetchDates();
-    const today = new Date().toISOString().split("T")[0];
-    setSelectedDate(today);
-  }, []);
-
-  useEffect(() => {
-    if (selectedDate) {
-      fetchLogs();
+    if (!selectedDate) {
+      const today = new Date().toISOString().split("T")[0];
+      setSelectedDate(today);
     }
-  }, [selectedDate, selectedCategory]);
+  }, [selectedDate]);
+
+  const { data: logs = [] } = useSWR(
+    selectedDate ? `/api/kick-bot/logs?date=${selectedDate}&category=${selectedCategory}` : null, 
+    fetcher,
+    { refreshInterval: 5000 } // Auto-poll logs every 5 seconds
+  );
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [logs]);
-
-  const fetchDates = async () => {
-    try {
-      const res = await fetch("/api/kick-bot/logs?listDates=true");
-      const dates = await res.json();
-      setAvailableDates(dates);
-    } catch (e) {}
-  };
-
-  const fetchLogs = async () => {
-    if (!selectedDate) return;
-    try {
-      const res = await fetch(`/api/kick-bot/logs?date=${selectedDate}&category=${selectedCategory}`);
-      const data = await res.json();
-      setLogs(data);
-    } catch (e) {}
-  };
 
   const handleDownload = () => {
     window.open(`/api/kick-bot/logs?date=${selectedDate}&category=${selectedCategory}&download=true`);

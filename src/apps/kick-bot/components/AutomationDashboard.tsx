@@ -1,14 +1,17 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import { GlassCard } from "../../../components/ui/GlassCard";
 import { ListIcon, ShootingStarIcon, BoltIcon } from "@/icons";
 import { ConfirmationModal } from "@/components/ui/modal/ConfirmationModal";
 import { TacticalTooltip } from "@/components/ui/TacticalTooltip";
 
 export const AutomationDashboard = () => {
-  const [config, setConfig] = useState<any>(null);
-  const [chatLibraries, setChatLibraries] = useState<Record<string, string[]>>({});
-  const [emojiCategories, setEmojiCategories] = useState<Record<string, string[]>>({});
+  const { data: config, mutate: mutateConfig } = useSWR("/api/kick-bot/config", fetcher);
+  const { data: chatLibraries } = useSWR("/api/kick-bot/chat-libraries", fetcher);
+  const { data: emojiCategories } = useSWR("/api/kick-bot/emoji-categories", fetcher);
+
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
     message: string;
@@ -23,19 +26,7 @@ export const AutomationDashboard = () => {
   const [isStreamOnline, setIsStreamOnline] = useState(true);
   const [isExtracting, setIsExtracting] = useState(false);
 
-  useEffect(() => {
-    fetchConfig();
-    fetchChatLibraries();
-    fetchEmojiCategories();
-  }, []);
-
   // SAFETY & COMPLIANCE MONITOR has been disabled to prevent offline auto-stops.
-
-  const fetchConfig = async () => {
-    const res = await fetch("/api/kick-bot/config");
-    const data = await res.json();
-    setConfig(data);
-  };
 
   const handleStopAll = () => {
     updateConfig({ 
@@ -43,30 +34,21 @@ export const AutomationDashboard = () => {
     });
   };
 
-  const fetchChatLibraries = async () => {
-    try {
-      const res = await fetch("/api/kick-bot/chat-libraries");
-      const data = await res.json();
-      setChatLibraries(data);
-    } catch (e) {}
-  };
-
-  const fetchEmojiCategories = async () => {
-    try {
-      const res = await fetch("/api/kick-bot/emoji-categories");
-      const data = await res.json();
-      setEmojiCategories(data);
-    } catch (e) {}
-  };
-
   const updateConfig = async (updates: any) => {
     const newConfig = { ...config, ...updates };
-    setConfig(newConfig);
-    await fetch("/api/kick-bot/config", {
-      method: "POST",
-      body: JSON.stringify(newConfig),
-      headers: { "Content-Type": "application/json" },
-    });
+    // Optimistic mutation: update the UI instantly without waiting for revalidation
+    mutateConfig(newConfig, false);
+    
+    try {
+      await fetch("/api/kick-bot/config", {
+        method: "POST",
+        body: JSON.stringify(newConfig),
+        headers: { "Content-Type": "application/json" },
+      });
+    } finally {
+      // Re-fetch to ensure sync with server
+      mutateConfig();
+    }
   };
 
   const toggleAutopilot = async () => {
@@ -154,14 +136,14 @@ export const AutomationDashboard = () => {
                      >
                         <optgroup label="Emoji Matrices">
                           <option value="emoji_global">🎭 All Enabled Emojis (Global)</option>
-                          {Object.keys(emojiCategories).filter(catId => Array.isArray(emojiCategories[catId])).map(catId => (
+                          {emojiCategories && Object.keys(emojiCategories).filter(catId => Array.isArray(emojiCategories[catId])).map(catId => (
                             <option key={`emoji_cat_${catId}`} value={`emoji_cat_${catId}`}>🎭 {catId} ({emojiCategories[catId].length} emojis)</option>
                           ))}
                         </optgroup>
                         
                         <optgroup label="Message Libraries">
                           <option value="text_cat_" disabled>Select a Message Library...</option>
-                          {Object.keys(chatLibraries).filter(cat => Array.isArray(chatLibraries[cat])).map(cat => (
+                          {chatLibraries && Object.keys(chatLibraries).filter(cat => Array.isArray(chatLibraries[cat])).map(cat => (
                             <option key={`text_cat_${cat}`} value={`text_cat_${cat}`}>📝 {cat} ({chatLibraries[cat].length} phrases)</option>
                           ))}
                         </optgroup>

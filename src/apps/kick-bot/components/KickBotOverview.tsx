@@ -1,33 +1,22 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
+import React from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import { GroupIcon, BoxIconLine, ListIcon, BoltIcon } from "@/icons";
 
 export const KickBotOverview = () => {
-  const [stats, setStats] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [configRes, accountsRes] = await Promise.all([
-          fetch("/api/kick-bot/config"),
-          fetch("/api/kick-bot/accounts")
-        ]);
-        
-        const config = await configRes.json();
-        const db = await accountsRes.json();
-        
-        const accounts = Object.values(db.accounts || {});
-        setStats({
-          totalAccounts: accounts.length,
-          activeAccounts: accounts.filter((a: any) => a.status === "ACTIVE" && a.enabled !== false).length,
-          disabledAccounts: accounts.filter((a: any) => a.enabled === false).length,
-          autopilotStatus: config.autopilot?.enabled || false,
-        });
-      } catch (e) {}
-    };
+  const { data: config } = useSWR("/api/kick-bot/config", fetcher);
+  const { data: accountsData } = useSWR("/api/kick-bot/accounts", fetcher);
+  
+  const accounts = accountsData ? Object.values(accountsData.accounts || {}) : null;
 
-    fetchData();
-  }, []);
+  const stats = config && accounts ? {
+    totalAccounts: accounts.length,
+    activeAccounts: accounts.filter((a: any) => a.status === "ACTIVE" && a.enabled !== false).length,
+    disabledAccounts: accounts.filter((a: any) => a.enabled === false).length,
+    autopilotStatus: config.autopilot?.enabled || false,
+  } : null;
 
   const getStatItems = () => {
     if (!stats) return [
@@ -109,24 +98,24 @@ export const KickBotOverview = () => {
                   <h4 className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter tabular-nums">
                     {item.value}
                   </h4>
-                  {item.isDisabledDisplay && typeof item.value === 'number' && item.value === 0 && (
+                  {(item as any).isDisabledDisplay && typeof item.value === 'number' && item.value === 0 && (
                     <span className="text-[10px] font-bold text-[#05FF00]/40 uppercase tracking-widest animate-pulse">All Systems Clear</span>
                   )}
                 </div>
                 
                 <div className="mt-6">
-                  {item.isStatus ? (
+                  {(item as any).isStatus ? (
                     <div className="flex items-center gap-4 h-8 bg-black/20 rounded-xl px-4 border border-white/5">
                       <div className="flex-1 h-[4px] bg-white/5 relative overflow-hidden rounded-full">
-                         {item.active && (
+                         {(item as any).active && (
                            <div className="absolute inset-0 flex">
                               <div className="h-full w-48 bg-gradient-to-r from-transparent via-[#05FF00] to-transparent animate-[pulse-flow_1.2s_infinite]" />
                            </div>
                          )}
                       </div>
-                      <div className={`w-3.5 h-3.5 rounded-full transition-all duration-500 ${item.active ? 'bg-[#05FF00] shadow-[0_0_20px_#05FF00] scale-125' : 'bg-gray-800 shadow-none scale-100'}`} />
+                      <div className={`w-3.5 h-3.5 rounded-full transition-all duration-500 ${(item as any).active ? 'bg-[#05FF00] shadow-[0_0_20px_#05FF00] scale-125' : 'bg-gray-800 shadow-none scale-100'}`} />
                     </div>
-                  ) : item.isDisabledDisplay ? (
+                  ) : (item as any).isDisabledDisplay ? (
                      <div className="flex flex-col gap-3">
                         <div className="flex flex-wrap gap-2 min-h-4 items-center">
                           {typeof item.value === 'number' && item.value > 0 ? (

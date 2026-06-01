@@ -1,5 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import Pusher from "pusher-js";
 import { GlassCard } from "../../../components/ui/GlassCard";
 import { BoltIcon, BoxCubeIcon, ChevronDownIcon, ListIcon, PlugInIcon } from "@/icons";
@@ -24,29 +26,24 @@ interface ChatLibraries {
   [key: string]: string[];
 }
 
-interface Emoji {
-  name: string;
-  code: string;
-  id: string | null;
-  url: string | null;
-  image: string;
-  enabled?: boolean;
-}
-
 export const LiveChatStation = () => {
+  const { data: accountsResponse } = useSWR("/api/kick-bot/accounts", fetcher);
+  const accounts = accountsResponse ? Object.values(accountsResponse || {}).filter((a: any) => a.enabled) : [];
+  
+  const { data: chatLibraries = {} } = useSWR("/api/kick-bot/chat-libraries", fetcher);
+  const { data: emojis = [] } = useSWR("/api/kick-bot/emojis", fetcher);
+  const { data: emojiCategories = {} } = useSWR("/api/kick-bot/emoji-categories", fetcher);
+  const { data: config } = useSWR("/api/kick-bot/config", fetcher);
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [activePersonaIndex, setActivePersonaIndex] = useState(0);
-  const [accounts, setAccounts] = useState<any[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [chatLibraries, setChatLibraries] = useState<ChatLibraries>({});
-  const [emojis, setEmojis] = useState<Emoji[]>([]);
-  const [emojiCategories, setEmojiCategories] = useState<Record<string, string[]>>({});
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState<string>("All Assets");
   const [openLibrary, setOpenLibrary] = useState<string | null>(null);
   
-  const [chatroomId, setChatroomId] = useState<string | null>(null);
+  const chatroomId = config?.chatroomId;
   const [pusherConnected, setPusherConnected] = useState(false);
   const [isLiveFeedPaused, setIsLiveFeedPaused] = useState(false);
   const liveFeedPausedRef = useRef(isLiveFeedPaused);
@@ -74,21 +71,6 @@ export const LiveChatStation = () => {
     return () => {
       if (current) current.removeEventListener("wheel", handleWheel);
     };
-  }, []);
-
-  useEffect(() => {
-    fetchAccounts();
-    fetchChatLibraries();
-    fetchEmojis();
-    fetchEmojiCategories();
-    
-    // Fetch chatroomId from config
-    fetch("/api/kick-bot/config")
-      .then(res => res.json())
-      .then(data => {
-        if (data.chatroomId) setChatroomId(data.chatroomId);
-      })
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -123,7 +105,6 @@ export const LiveChatStation = () => {
       setMessages(prev => {
         if (prev.some(m => m.id === incomingMsg.id)) return prev;
 
-        // Check if this incoming message matches a recent outgoing message we sent that is still pending
         const recentOutgoingIdx = prev.findIndex(m => 
           m.type === 'outgoing' && 
           m.user === incomingMsg.user && 
@@ -132,7 +113,6 @@ export const LiveChatStation = () => {
         );
 
         if (recentOutgoingIdx !== -1) {
-          // Update the fake local message with the real Kick ID and Sender ID
           const newArr = [...prev];
           newArr[recentOutgoingIdx] = {
             ...newArr[recentOutgoingIdx],
@@ -173,50 +153,6 @@ export const LiveChatStation = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const fetchAccounts = async () => {
-    const res = await fetch("/api/kick-bot/accounts");
-    const data = await res.json();
-    setAccounts(Object.values(data.accounts || {}).filter((a: any) => a.enabled && a.status === "ACTIVE"));
-  };
-
-  const getStatusColor = (status: string | undefined) => {
-    if (!status) return "bg-gray-500";
-    const s = status.toUpperCase();
-    if (s === "ACTIVE") return "bg-[#05FF00] shadow-[0_0_8px_#05FF00]";
-    return "bg-red-500 shadow-[0_0_8px_#ef4444]";
-  };
-
-  const fetchChatLibraries = async () => {
-    try {
-      const res = await fetch("/api/kick-bot/chat-libraries");
-      const data = await res.json();
-      setChatLibraries(data);
-    } catch (e) {}
-  };
-
-  const fetchEmojiCategories = async () => {
-    try {
-      const res = await fetch("/api/kick-bot/emoji-categories");
-      const data = await res.json();
-      setEmojiCategories(data);
-    } catch (e) {}
-  };
-
-  const fetchEmojis = async () => {
-    try {
-      const res = await fetch("/api/kick-bot/emojis");
-      if (!res.ok) throw new Error("API_UPLINK_FAILURE");
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setEmojis(data);
-      }
-    } catch (e: any) {
-      if (e.message !== "API_UPLINK_FAILURE") {
-        console.error("EMOJI_FETCH_CRITICAL:", e);
-      }
-    }
-  };
-
   const [replyingTo, setReplyingTo] = useState<{ id: string, user: string, content: string, sender_id?: string | number } | null>(null);
 
   const handleSendMessage = async (customContent?: string) => {
@@ -243,20 +179,16 @@ export const LiveChatStation = () => {
     let replyData = undefined;
     if (replyingTo) {
       const repliedAccount = accounts.find(a => a.username === replyingTo.user);
-      
       let finalSenderId = replyingTo.sender_id;
       if (!finalSenderId && repliedAccount) {
         finalSenderId = parseInt(repliedAccount.userId) || 0;
       }
-      
       replyData = {
         original_message_id: replyingTo.id,
         original_message_content: replyingTo.content,
         original_sender_id: finalSenderId || 0,
         original_sender_username: replyingTo.user
       };
-      
-      // Clear the reply UI indicator instantly
       setReplyingTo(null);
     }
 
@@ -280,48 +212,21 @@ export const LiveChatStation = () => {
             const idx = prev.findIndex(m => m.id === newMsg.id);
             if (idx !== -1) {
               const newArr = [...prev];
-              newArr[idx] = {
-                ...newArr[idx],
-                id: result.id,
-                sender_id: result.sender_id,
-                isPending: false
-              };
-              return newArr;
-            }
-            return prev;
-          });
-        } else {
-          setMessages(prev => {
-            const idx = prev.findIndex(m => m.id === newMsg.id);
-            if (idx !== -1) {
-              const newArr = [...prev];
-              newArr[idx] = { ...newArr[idx], error: true, isPending: false };
+              newArr[idx] = { ...newArr[idx], id: result.id, sender_id: result.sender_id, isPending: false };
               return newArr;
             }
             return prev;
           });
         }
-      } else {
-        setMessages(prev => {
-          const idx = prev.findIndex(m => m.id === newMsg.id);
-          if (idx !== -1) {
-            const newArr = [...prev];
-            newArr[idx] = { ...newArr[idx], error: true, isPending: false };
-            return newArr;
-          }
-          return prev;
-        });
       }
-    } catch (error) {
-      setMessages(prev => {
-        const idx = prev.findIndex(m => m.id === newMsg.id);
-        if (idx !== -1) {
-          const newArr = [...prev];
-          newArr[idx] = { ...newArr[idx], error: true, isPending: false };
-          return newArr;
-        }
-        return prev;
-      });
+    } catch (error) {}
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active': return 'bg-[#05FF00]';
+      case 'idle': return 'bg-yellow-500';
+      default: return 'bg-gray-500';
     }
   };
 
@@ -333,7 +238,6 @@ export const LiveChatStation = () => {
   const [isEmojiMenuOpen, setIsEmojiMenuOpen] = useState(true);
   const [isEmojiMenuLocked, setIsEmojiMenuLocked] = useState(false);
 
-  // Renders a message content string, replacing [emote:ID:NAME] with inline emoji images
   const renderMessageContent = (content: string) => {
     const emoteRegex = /\[emote:(\d+):([^\]]+)\]/g;
     const parts: React.ReactNode[] = [];
@@ -347,7 +251,6 @@ export const LiveChatStation = () => {
       const emoteId = match[1];
       const emoteName = match[2];
       const found = emojiList.find(e => e.name === emoteName);
-      // Priority 1: our local image. Priority 2: Kick CDN by emote ID
       const src = found?.image
         ? `/images/emojis/${found.image}`
         : `https://files.kick.com/emotes/${emoteId}/fullsize`;
@@ -371,16 +274,12 @@ export const LiveChatStation = () => {
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-auto xl:h-[calc(100vh-200px)]">
-      
-      {/* MAIN CHAT AREA */}
       <div className="xl:col-span-3 flex flex-col h-[60vh] md:h-[600px] xl:h-full overflow-hidden border border-gray-100 dark:border-white/5 bg-white dark:bg-[#0A0A0B] rounded-[32px] shadow-sm dark:shadow-2xl relative">
-        
         <div className="p-5 border-b border-gray-100 dark:border-white/5 flex flex-wrap md:flex-nowrap items-center justify-between gap-4 bg-gray-50/50 dark:bg-black/20 relative z-30">
            <div className="flex items-center gap-4 w-full md:w-auto">
               <button 
                 onClick={() => setIsLiveFeedPaused(!isLiveFeedPaused)}
                 className={`flex items-center gap-2 pr-4 border-r border-gray-100 dark:border-white/5 shrink-0 transition-opacity ${isLiveFeedPaused ? 'opacity-50' : 'opacity-100 hover:opacity-80'}`}
-                title={isLiveFeedPaused ? "Resume Live Feed" : "Pause Live Feed"}
               >
                 <div className={`w-2.5 h-2.5 rounded-full ${pusherConnected && !isLiveFeedPaused ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)] animate-pulse' : 'bg-gray-500'}`} />
                 <span className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest hidden sm:block">
@@ -403,7 +302,7 @@ export const LiveChatStation = () => {
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-full bg-[#0F0F10] border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="absolute top-full left-0 mt-2 w-full bg-[#0F0F10] border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden z-[100]">
                     <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
                       {accounts.map((acc, index) => (
                         <button

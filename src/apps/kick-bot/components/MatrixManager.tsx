@@ -1,5 +1,7 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PlusIcon, TrashBinIcon, PencilIcon, CloseIcon, CheckLineIcon, BoltIcon, ListIcon, BoxCubeIcon, FolderIcon } from "@/icons";
 import { ConfirmationModal } from "@/components/ui/modal/ConfirmationModal";
@@ -7,9 +9,10 @@ import { TacticalTooltip } from "@/components/ui/TacticalTooltip";
 
 export const MatrixManager = () => {
   const [activeTab, setActiveTab] = useState<"chat" | "emoji">("chat");
-  const [chatLibraries, setChatLibraries] = useState<Record<string, string[]>>({});
-  const [emojiCategories, setEmojiCategories] = useState<Record<string, string[]>>({});
-  const [allEmojis, setAllEmojis] = useState<any[]>([]);
+  const { data: chatLibraries = {}, mutate: mutateChat } = useSWR("/api/kick-bot/chat-libraries", fetcher);
+  const { data: emojiCategories = {}, mutate: mutateEmojiCat } = useSWR("/api/kick-bot/emoji-categories", fetcher);
+  const { data: allEmojis = [], mutate: mutateAllEmojis } = useSWR("/api/kick-bot/emojis", fetcher);
+
   const [isSavingChat, setIsSavingChat] = useState(false);
   const [isSavingEmoji, setIsSavingEmoji] = useState(false);
 
@@ -35,51 +38,22 @@ export const MatrixManager = () => {
   const [isEditingEmoji, setIsEditingEmoji] = useState<string | null>(null);
   const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
 
-  useEffect(() => {
-    fetchChatLibraries();
-    fetchEmojiCategories();
-    fetchAllEmojis();
-  }, []);
-
-  const fetchChatLibraries = async () => {
-    try {
-      const res = await fetch("/api/kick-bot/chat-libraries");
-      const data = await res.json();
-      setChatLibraries(data);
-    } catch (e) {}
-  };
-
-  const fetchEmojiCategories = async () => {
-    try {
-      const res = await fetch("/api/kick-bot/emoji-categories");
-      const data = await res.json();
-      setEmojiCategories(data);
-    } catch (e) {}
-  };
-
-  const fetchAllEmojis = async () => {
-    try {
-      const res = await fetch("/api/kick-bot/emojis");
-      if (!res.ok) throw new Error("API_UPLINK_FAILURE");
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setAllEmojis(data);
-      }
-    } catch (e) {
-      console.error("EMOJI_FETCH_CRITICAL:", e);
-    }
-  };
-
   const handleSaveChat = async (name: string, content: string) => {
     setIsSavingChat(true);
     try {
+      // Optimistic mutate
+      const lines = content.split('\n').filter(l => l.trim() !== '');
+      mutateChat({ ...chatLibraries, [name]: lines }, false);
+      
       await fetch("/api/kick-bot/chat-libraries", {
         method: "POST",
-        body: JSON.stringify({ name, content, action: "save" }),
+        body: JSON.stringify({ name, content }),
         headers: { "Content-Type": "application/json" }
       });
       setIsEditingChat(null);
-      await fetchChatLibraries();
+      setNewCatName("");
+      setChatBuffer("");
+      mutateChat();
     } catch (e) {
       console.error(e);
     } finally {
@@ -93,12 +67,17 @@ export const MatrixManager = () => {
       message: `Are you sure you want to delete the chat category "${name}"? This will remove all associated phrases from the tactical database.`,
       variant: "danger",
       onConfirm: async () => {
+        // Optimistic mutate
+        const updated = { ...chatLibraries };
+        delete updated[name];
+        mutateChat(updated, false);
+        
         await fetch("/api/kick-bot/chat-libraries", {
           method: "POST",
           body: JSON.stringify({ name, action: "delete" }),
           headers: { "Content-Type": "application/json" }
         });
-        fetchChatLibraries();
+        mutateChat();
       }
     });
   };
@@ -110,6 +89,8 @@ export const MatrixManager = () => {
     setIsSavingEmoji(true);
     try {
       const updated = { ...emojiCategories, [name]: selectedEmojis };
+      mutateEmojiCat(updated, false);
+      
       await fetch("/api/kick-bot/emoji-categories", {
         method: "POST",
         body: JSON.stringify(updated),
@@ -118,7 +99,7 @@ export const MatrixManager = () => {
       setIsEditingEmoji(null);
       setNewCatName("");
       setSelectedEmojis([]);
-      await fetchEmojiCategories();
+      mutateEmojiCat();
     } catch (e) {
       console.error(e);
     } finally {
@@ -134,12 +115,14 @@ export const MatrixManager = () => {
       onConfirm: async () => {
         const updated = { ...emojiCategories };
         delete updated[name];
+        mutateEmojiCat(updated, false);
+        
         await fetch("/api/kick-bot/emoji-categories", {
           method: "POST",
           body: JSON.stringify(updated),
           headers: { "Content-Type": "application/json" }
         });
-        fetchEmojiCategories();
+        mutateEmojiCat();
       }
     });
   };
@@ -193,13 +176,10 @@ export const MatrixManager = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emotes: allEmotes, channel }),
       });
-      const data = await res.json();
-      if (data.success) {
-        setKickSyncStatus({ type: 'success', msg: `✓ Synced ${data.synced} emotes from "${channel}"` });
-        await fetchAllEmojis();
-      } else {
-        setKickSyncStatus({ type: 'error', msg: data.error || 'Sync failed' });
-      }
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "UPLINK_FAILURE");
+      setKickSyncStatus({ type: 'success', msg: `Synced ${result.count} tactical assets.` });
+      mutateAllEmojis();
     } catch (e: any) {
       setKickSyncStatus({ type: 'error', msg: e.message || 'Network error' });
     } finally {

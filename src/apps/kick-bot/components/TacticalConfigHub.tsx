@@ -1,11 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 import { GlassCard } from "../../../components/ui/GlassCard";
 import { ConfirmationModal } from "@/components/ui/modal/ConfirmationModal";
 import { TacticalTooltip } from "@/components/ui/TacticalTooltip";
 
 export const TacticalConfigHub = () => {
-  const [config, setConfig] = useState<any>(null);
+  const { data: config, mutate } = useSWR("/api/kick-bot/config", fetcher);
   const [pendingConfig, setPendingConfig] = useState<any>(null);
   const [streamerLink, setStreamerLink] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
@@ -21,9 +23,10 @@ export const TacticalConfigHub = () => {
   });
 
   useEffect(() => {
-    fetchConfig();
-  }, []);
-
+    if (config && !pendingConfig) {
+      setPendingConfig(JSON.parse(JSON.stringify(config)));
+    }
+  }, [config, pendingConfig]);
   const [isNavigationWarningOpen, setIsNavigationWarningOpen] = useState(false);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const isBypassingWarning = React.useRef(false);
@@ -72,12 +75,7 @@ export const TacticalConfigHub = () => {
     setIsNavigationWarningOpen(false);
   };
 
-  const fetchConfig = async () => {
-    const res = await fetch("/api/kick-bot/config");
-    const data = await res.json();
-    setConfig(data);
-    setPendingConfig(JSON.parse(JSON.stringify(data)));
-  };
+  // Replaced fetchConfig with SWR
 
   const handleExtract = async () => {
     if (!streamerLink) return;
@@ -115,12 +113,13 @@ export const TacticalConfigHub = () => {
       isOpen: true,
       message: `Are you sure you want to deploy these parameters? This will synchronize the bot with ${pendingConfig.streamerName}'s neural network.`,
       onConfirm: async () => {
+        mutate(JSON.parse(JSON.stringify(pendingConfig)), false);
         await fetch("/api/kick-bot/config", {
           method: "POST",
           body: JSON.stringify(pendingConfig),
           headers: { "Content-Type": "application/json" },
         });
-        setConfig(JSON.parse(JSON.stringify(pendingConfig)));
+        mutate();
       }
     });
   };
