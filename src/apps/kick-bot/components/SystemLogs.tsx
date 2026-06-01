@@ -18,7 +18,8 @@ export const SystemLogs = () => {
 
   const categories = ["ALL", "SYSTEM", "ACCOUNTS", "CHAT", "AUTOMATION", "SECURITY"];
 
-  const { data: availableDates = [] } = useSWR("/api/kick-bot/logs?listDates=true", fetcher);
+  const { data: availableDatesResponse } = useSWR("/api/kick-bot/logs?listDates=true", fetcher);
+  const availableDates: string[] = availableDatesResponse || [];
   
   // Set initial selected date to today if available
   useEffect(() => {
@@ -28,11 +29,12 @@ export const SystemLogs = () => {
     }
   }, [selectedDate]);
 
-  const { data: logs = [] } = useSWR(
+  const { data: logsResponse } = useSWR(
     selectedDate ? `/api/kick-bot/logs?date=${selectedDate}&category=${selectedCategory}` : null, 
     fetcher,
     { refreshInterval: 5000 } // Auto-poll logs every 5 seconds
   );
+  const logs: LogEntry[] = logsResponse || [];
 
   useEffect(() => {
     if (scrollRef.current) {
